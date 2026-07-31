@@ -55,11 +55,11 @@ informative:
 
 --- abstract
 
-This document extends the MOQT Streaming Format (MSF) by registering the
+This document extends the MOQT Streaming Format (MSF) catalog by defining the
 "m2ts" packaging value for carrying MPEG-2 Transport Stream and M2TS source
-packets over Media Over QUIC Transport.  It defines catalog fields for
-transport-stream track description and specifies receiver and relay behavior
-for joining, switching, and validating packetized streams.
+packets over Media Over QUIC Transport.  It defines catalog-extension fields
+for transport-stream track description and specifies receiver and relay
+behavior for joining, switching, and validating packetized streams.
 
 --- middle
 
@@ -68,7 +68,7 @@ for joining, switching, and validating packetized streams.
 Media Over QUIC Transport (MOQT) {{MoQTransport}} delivers named tracks as
 ordered groups of objects.  The MOQT Streaming Format (MSF) {{MSF}} defines a
 catalog model and common streaming conventions for describing tracks delivered
-over MOQT.  This document extends MSF by registering the "m2ts" packaging
+over MOQT.  This document extends the MSF catalog with the "m2ts" packaging
 value for carrying MPEG-2 Transport Stream packets as defined by {{ISO138181}}
 and M2TS source packets that prefix each transport-stream packet with a
 four-octet source-packet timestamp.
@@ -91,6 +91,17 @@ This document does not use the LOC packaging defined in {{MSF}}.  MSF
 requirements that are conditioned on `packaging: loc` do not apply to
 m2ts-packaged tracks; equivalent behavior for m2ts tracks is defined in this
 document.
+
+This document is an extension of the catalog defined by the revision of
+{{MSF}} identified in the normative references.  The catalog structure, common
+fields, and catalog processing rules are inherited from that revision of MSF.
+This document defines only the `m2ts` packaging value and the fields and
+processing rules specific to that packaging.
+
+The catalog `version` field identifies the referenced MSF revision and does not
+identify version 1 of the MSFTS packaging format described in {{introduction}}.
+Catalogs conforming to this document MUST use the version value specified by
+the referenced revision of MSF.
 
 # Conventions and Definitions
 
@@ -349,12 +360,13 @@ specify SCTE-35 processing.
 
 # Catalog {#catalog}
 
-An m2ts track is described by the MSF catalog {{MSF}}.  The catalog track name,
-delta update rules, variable substitution rules, authorization signaling, and
-common track fields are inherited from MSF.
-
-This document defines additional fields for track objects whose `packaging`
-value is "m2ts".  A parser MUST ignore fields it does not understand.
+An m2ts track is described by the MSF catalog {{MSF}}.  This document extends
+that catalog by defining the `m2ts` value for the inherited `packaging` field
+and additional fields for track objects that use that value.  The catalog track
+name, root catalog fields, common track fields, delta update rules, variable
+substitution rules, and authorization signaling are inherited unchanged from
+MSF unless this document explicitly states otherwise.  A parser MUST ignore
+fields it does not understand.
 
 ## Track Object Fields {#track-fields}
 
@@ -374,7 +386,9 @@ Table 1 lists the m2ts-specific fields defined within a track object.
 | M2TS timestamp mode           | m2tsTimestampMode       | {{m2ts-timestamp-mode}} |
 | M2TS SCTE-35 PID              | m2tsScte35Pid           | {{m2ts-scte35-pid}} |
 | M2TS MPTS                     | m2tsMpts                | {{m2ts-mpts}} |
-| Initialization data           | initData                | {{init-data}} |
+
+Use of the MSF `initRef` and `initDataList` fields by m2ts tracks is described
+in {{init-data}}.
 
 ## M2TS Packet Size {#m2ts-packet-size}
 
@@ -488,25 +502,30 @@ When true, this track carries a multi-program transport stream without program
 selection or PID filtering.  `m2tsProgramNumber`, `m2tsPmtPid`, and
 `m2tsPcrPid` MUST be absent when this field is true.
 
-## Initialization Data {#init-data}
+## Use of MSF Initialization Data {#init-data}
 
-Required: Optional    JSON Type: String    Location: Track Object
+The `initRef` track field and the root `initDataList` field are defined by MSF;
+they are not fields defined by this extension.  An m2ts track MAY use those
+fields to carry initialization data.  The track sets `initRef` to the `id` of
+an `initDataList` entry whose `type` MUST be "inline".  The Base64 {{BASE64}}
+decoded value of the entry's `data` field MUST be a sequence of whole source
+packets using the packet size declared by `m2tsPacketSize`.
 
-An m2ts track MAY use the MSF `initData` field to carry Base64 {{BASE64}}
-encoded initialization data.  If present, the decoded value MUST be a sequence
-of whole source packets using the packet size declared by `m2tsPacketSize`.
+Publishers SHOULD include current PAT and PMT packets in the referenced
+initialization data when those tables are not guaranteed to be available at the
+first Object of each Group.  When PSI changes within a live track, the
+publisher SHOULD publish an updated initialization data entry in a new
+independent catalog before publishing media Objects that rely on the changed
+PSI.  An update to the root `initDataList` MUST NOT be expressed as an MSF delta
+update.  Receivers MUST NOT assume that referenced initialization data remains
+valid after the MPEG-2 PSI `version_number` changes; updated PSI in media
+Objects takes precedence.
 
-Publishers SHOULD include current PAT and PMT packets in `initData` when those
-tables are not guaranteed to be available at the first Object of each Group.
-When PSI changes within a live track, publishers SHOULD update `initData` to
-reflect the new PAT and PMT before publishing subsequent Objects.
-Receivers MUST NOT assume that `initData` remains valid after a version change
-in transport-stream PSI; updated PSI in the media Objects takes precedence.
-
-For `m2tsMpts` tracks, encoding `initData` requires extracting PAT and all
-program PMTs from the source multiplex.  Publishers that do not inspect the
-source stream typically omit `initData`; subscribers will encounter PSI within
-one PSI repetition cycle regardless of Group boundaries.
+For `m2tsMpts` tracks, producing referenced initialization data requires
+extracting the PAT and all program PMTs from the source multiplex.  Publishers
+that do not inspect the source stream typically omit `initRef` and the
+corresponding `initDataList` entry; subscribers will encounter PSI within one
+PSI repetition cycle regardless of Group boundaries.
 
 # Catalog Examples {#catalog-examples}
 
@@ -516,7 +535,7 @@ The following examples are non-normative.
 
 ~~~ json
 {
-  "version": 1,
+  "version": "draft-01",
   "generatedAt": 1746104606044,
   "tracks": [
     {
@@ -544,7 +563,7 @@ The following examples are non-normative.
 
 ~~~ json
 {
-  "version": 1,
+  "version": "draft-01",
   "generatedAt": 1746104606044,
   "tracks": [
     {
@@ -570,7 +589,7 @@ The following examples are non-normative.
 
 ~~~ json
 {
-  "version": 1,
+  "version": "draft-01",
   "tracks": [
     {
       "name": "asset-main",
@@ -599,7 +618,7 @@ used because the programs carry different content.
 
 ~~~ json
 {
-  "version": 1,
+  "version": "draft-01",
   "generatedAt": 1746104606044,
   "tracks": [
     {
@@ -649,7 +668,7 @@ advisory hint; its value is not normative for MPTS tracks.
 
 ~~~ json
 {
-  "version": 1,
+  "version": "draft-01",
   "generatedAt": 1746104606044,
   "tracks": [
     {
@@ -679,7 +698,7 @@ PAT and PMT on the new track before routing packets to a decoder.
 
 ~~~ json
 {
-  "version": 1,
+  "version": "draft-01",
   "generatedAt": 1746104606044,
   "tracks": [
     {
