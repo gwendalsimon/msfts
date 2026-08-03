@@ -201,10 +201,10 @@ Stream semantics.  Continuity counters, adaptation fields, PCR, PTS, DTS,
 Program Specific Information (PSI), and other transport-stream syntax remain
 inside the source packets.
 
-A publisher MUST NOT modify the continuity counter of any source packet, and
-MUST NOT remap packet identifiers when forwarding a source transport stream.
-Either modification silently breaks program decoding or conditional access at
-the receiver.
+When `m2tsModified` ({{m2ts-modified}}) is false, a publisher MUST NOT modify
+the continuity counter of any source packet and MUST NOT remap packet
+identifiers.  The modifications permitted when `m2tsModified` is true are
+defined in {{mpts}}.
 
 A publisher SHOULD place an independently usable random access point at the
 first media Object of each MOQT Group.  For single-program video tracks, this
@@ -250,24 +250,46 @@ packets per media Object.  The final Object of a Group MAY contain fewer source
 packets.  Receivers MUST use the actual Object payload length rather than
 assuming every Object has the declared size.
 
-## Multi-Program Source Handling {#mpts}
+## Source Handling and Carriage Modes {#mpts}
 
-When a publisher receives a multi-program transport stream (MPTS), it may
-either produce a separate m2ts track for each program by filtering the source,
-or carry the complete multiplex transparently by setting `m2tsMpts`
-({{m2ts-mpts}}) to true.
+A publisher carries a transport stream in one of two modes, signaled by the
+required `m2tsModified` field ({{m2ts-modified}}): unmodified carriage, where
+the source packets are forwarded as received, and modified carriage, where the
+publisher has changed the stream.  The `m2tsMpts` field ({{m2ts-mpts}})
+indicates whether the track carries a single program or a whole multiplex, and
+it alone controls the presence of the per-program fields.
 
-When the source is already a single-program transport stream, a publisher MAY
-carry it without filtering.  The source Program Association Table already lists
-exactly one program, so no PAT rewrite is required.  Null packets and any
-service information tables present in the source MAY be retained.  The
-per-program catalog fields `m2tsProgramNumber`, `m2tsPmtPid`, and `m2tsPcrPid`
-SHOULD be present to identify the carried program.  A subscriber receiving such
-a track MAY forward it downstream without modification, since the stream has not
-been derived from a larger multiplex and is complete as received.
+### Unmodified Carriage {#unmodified-carriage}
 
-A publisher deriving per-program tracks from an MPTS source SHOULD filter
-the source packets so that each track contains only:
+When `m2tsModified` is false, the publisher forwards the source packets without
+modification: no program selection, no packet identifier remap, no PAT or PMT
+rewrite, and no insertion or removal of null packets.  A receiver can
+reconstruct the source stream byte-for-byte.
+
+When the source is a single-program transport stream, `m2tsMpts` is false.  The
+source Program Association Table already lists exactly one program, so the
+per-program fields `m2tsProgramNumber`, `m2tsPmtPid`, and `m2tsPcrPid` SHOULD be
+present to identify the carried program.
+
+When the source is a multi-program transport stream, `m2tsMpts` is true and all
+source packets are emitted as received.  Because no program is selected, the
+per-program fields `m2tsProgramNumber`, `m2tsPmtPid`, and `m2tsPcrPid` MUST be
+absent, and per-track program subscription and the subscriber join behavior
+defined in this document do not apply.  Group boundary placement depends on
+whether the publisher can identify random access points across the multiplex:
+if it can, it MAY align Group boundaries to those points and set
+`m2tsRandomAccess` to true; otherwise it SHOULD start a new Group after a fixed
+number of Objects.
+
+### Modified Carriage {#modified-carriage}
+
+When `m2tsModified` is true, the publisher has changed the source stream, for
+example by selecting a program, filtering packets, rewriting the PAT or PMT, or
+adding or removing null packets.  A publisher that makes any of these changes
+MUST set `m2tsModified` to true.
+
+A publisher deriving a per-program track SHOULD filter the source packets so
+that each track contains only:
 
 * Null packets with Packet Identifier (PID) 0x1FFF, which MAY be removed or
   retained at the publisher's discretion.
@@ -313,20 +335,6 @@ per-program tracks to identify the program carried.  When multiple per-program
 tracks are derived from the same MPTS source, the publisher SHOULD use the MSF
 `altGroup` field if the programs are alternate renditions of the same content;
 programs that are independent services SHOULD be published as separate tracks.
-
-A publisher MAY instead carry the complete multi-program transport stream
-without program selection or PID filtering, by setting `m2tsMpts`
-({{m2ts-mpts}}) to true.  In this mode, all source packets from the multiplex
-are emitted without PAT rewrite.  Because no per-program filtering occurs,
-MOQT serves only as a scalable transport layer; per-track program subscription,
-per-program catalog fields, and the subscriber join behavior defined in this
-document do not apply.  When `m2tsMpts` is true, `m2tsProgramNumber`,
-`m2tsPmtPid`, and `m2tsPcrPid` MUST be absent.
-
-Group boundary placement for `m2tsMpts` tracks depends on whether the publisher
-can identify random access points across the multiplex: if it can, it MAY align
-Group boundaries to those points and set `m2tsRandomAccess` to true; otherwise
-it SHOULD start a new Group after a fixed number of Objects.
 
 ## PCR and Timing {#pcr-timing}
 
@@ -379,6 +387,7 @@ Table 1 lists the m2ts-specific fields defined within a track object.
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
 | M2TS packet size              | m2tsPacketSize          | {{m2ts-packet-size}} |
+| M2TS modified                 | m2tsModified            | {{m2ts-modified}} |
 | M2TS packets per Object       | m2tsPacketsPerObject    | {{m2ts-packets-per-object}} |
 | M2TS program number           | m2tsProgramNumber       | {{m2ts-program-number}} |
 | M2TS PMT PID                  | m2tsPmtPid              | {{m2ts-pmt-pid}} |
@@ -402,6 +411,16 @@ The source-packet size in octets.  The value MUST be either 188 or 192.  A value
 of 188 identifies ordinary MPEG-2 TS packets.  A value of 192 identifies M2TS
 source packets with a four-octet timestamp prefix followed by a 188-octet TS
 packet.
+
+## M2TS Modified {#m2ts-modified}
+
+Required: Yes    JSON Type: Boolean    Location: Track Object
+
+When true, the published packet stream is not a byte-for-byte copy of the
+source.  The publisher has changed it, for example by selecting a program,
+filtering packets, rewriting the PAT or PMT, or adding or removing null packets.
+When false, the publisher MUST forward the source packets without modification,
+so a receiver can reconstruct the source stream byte-for-byte.
 
 ## M2TS Packets per Object {#m2ts-packets-per-object}
 
@@ -546,6 +565,7 @@ The following examples are non-normative.
       "name": "program-1-ts",
       "namespace": "live.example.com/channel/1",
       "packaging": "m2ts",
+      "m2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
@@ -574,6 +594,7 @@ The following examples are non-normative.
       "name": "program-1-m2ts",
       "namespace": "contribution.example.net/feed/a",
       "packaging": "m2ts",
+      "m2tsModified": false,
       "isLive": true,
       "targetLatency": 500,
       "role": "video",
@@ -599,6 +620,7 @@ The following examples are non-normative.
       "name": "asset-main",
       "namespace": "vod.example.com/assets/1000",
       "packaging": "m2ts",
+      "m2tsModified": false,
       "isLive": false,
       "trackDuration": 632000,
       "role": "video",
@@ -629,6 +651,7 @@ used because the programs carry different content.
       "name": "program-1",
       "namespace": "live.example.com/mux/1",
       "packaging": "m2ts",
+      "m2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
@@ -646,6 +669,7 @@ used because the programs carry different content.
       "name": "program-2",
       "namespace": "live.example.com/mux/1",
       "packaging": "m2ts",
+      "m2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
@@ -679,6 +703,7 @@ advisory hint; its value is not normative for MPTS tracks.
       "name": "mux-1",
       "namespace": "live.example.com/mux/1",
       "packaging": "m2ts",
+      "m2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "mimeType": "video/mp2t",
@@ -709,6 +734,7 @@ PAT and PMT on the new track before routing packets to a decoder.
       "name": "video-high",
       "namespace": "live.example.com/channel/1",
       "packaging": "m2ts",
+      "m2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
@@ -727,6 +753,7 @@ PAT and PMT on the new track before routing packets to a decoder.
       "name": "video-low",
       "namespace": "live.example.com/channel/1",
       "packaging": "m2ts",
+      "m2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
