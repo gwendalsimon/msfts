@@ -12,8 +12,8 @@ v: 3
 area: "Applications and Real-Time"
 workgroup: "Media Over QUIC"
 keyword:
- - MoQ
- - MoQTransport
+ - MOQ
+ - MOQTransport
  - MPEG-2 Transport Stream
  - M2TS
  - MSF
@@ -36,8 +36,8 @@ author:
     email: gsimon@synamedia.com
 
 normative:
-  MoQTransport: I-D.draft-ietf-moq-transport
-  MSF: I-D.draft-ietf-moq-msf
+  MOQTransport: I-D.draft-ietf-moq-transport
+  MSF: I-D.draft-ietf-moq-msf-01
   ISO138181:
     title: "Information technology - Generic coding of moving pictures and associated audio information: Systems"
     author:
@@ -55,17 +55,17 @@ informative:
 
 --- abstract
 
-This document extends the MOQT Streaming Format (MSF) catalog by defining the
-"m2ts" packaging value for carrying MPEG-2 Transport Stream and M2TS source
-packets over Media Over QUIC Transport.  It defines catalog-extension fields
-for transport-stream track description and specifies receiver and relay
-behavior for joining, switching, and validating packetized streams.
+This document extends the Media Over QUIC Transport (MOQT) Streaming Format
+(MSF) catalog by defining the "m2ts" packaging value for carrying MPEG-2
+Transport Stream and M2TS source packets over MOQT.  It defines
+catalog-extension fields for transport-stream track description and specifies
+receiver behavior for joining, switching, and validating packetized streams.
 
 --- middle
 
 # Introduction
 
-Media Over QUIC Transport (MOQT) {{MoQTransport}} delivers named tracks as
+Media Over QUIC Transport (MOQT) {{MOQTransport}} delivers named tracks as
 ordered groups of objects.  The MOQT Streaming Format (MSF) {{MSF}} defines a
 catalog model and common streaming conventions for describing tracks delivered
 over MOQT.  This document extends the MSF catalog with the "m2ts" packaging
@@ -131,7 +131,7 @@ Random access point:
   receiving the applicable transport-stream tables and decoder initialization.
 
 Single-program transport stream:
-: A transport stream whose Program Association Table lists exactly one
+: A transport stream whose Program Association Table (PAT) lists exactly one
   program.
 
 Multi-program transport stream:
@@ -154,8 +154,9 @@ This specification does not define:
 * New MPEG-2 Transport Stream syntax.
 * New audio, video, metadata, or subtitle codec signaling inside the transport
   stream.
-* A replacement for Program Association Table, Program Map Table, PCR, PTS, DTS,
-  continuity counter, or scrambling semantics defined by {{ISO138181}}.
+* A replacement for Program Association Table, Program Map Table (PMT), Program
+  Clock Reference (PCR), Presentation Time Stamp (PTS), Decoding Time Stamp
+  (DTS), continuity counter, or scrambling semantics defined by {{ISO138181}}.
 * A mandatory Adaptive Bitrate (ABR) switching model across separately encoded transport streams.
 * A key management protocol.
 
@@ -289,14 +290,17 @@ required for descrambling; conditional access integration is application-specifi
 and outside the scope of this document.
 
 The Program Map Table references only the PIDs of the selected program's
-elementary streams and PCR; it does not reference the service information
-tables defined by DVB and ATSC: Network Information Table (NIT, 0x0010),
+elementary streams and PCR; it does not reference the service information (SI)
+tables defined by Digital Video Broadcasting (DVB) and the Advanced Television
+Systems Committee (ATSC): Network Information Table (NIT, 0x0010),
 Service Description Table and Bouquet Association Table (SDT/BAT, 0x0011),
 Event Information Table (EIT, 0x0012), and Time and Date Table with Time
-Offset Table (TDT/TOT, 0x0014), or their ATSC PSIP equivalents.  The filter
+Offset Table (TDT/TOT, 0x0014), or their ATSC Program and System Information
+Protocol (PSIP) equivalents.  The filter
 therefore drops these tables, leaving the resulting track without service
-identity, EPG, or broadcast time.  Publishers producing tracks for broadcast
-or IRD reception SHOULD retain the SI tables required by the target standard.
+identity, Electronic Program Guide (EPG), or broadcast time.  Publishers
+producing tracks for broadcast or Integrated Receiver Decoder (IRD) reception
+SHOULD retain the SI tables required by the target standard.
 When SI tables are retained, publishers SHOULD declare the additional PIDs
 using `m2tsSiPids` ({{m2ts-si-pids}}) so that subscribers can verify which
 tables are present.  Because SDT and EIT carried from an MPTS describe all
@@ -489,8 +493,8 @@ semantics.  This field MUST NOT be present when `m2tsPacketSize` is 188.
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The PID carrying SCTE-35 splice_info_section() messages for this track.  This
-field is advisory; SCTE-35 messages are also discoverable via the PMT CA/registration
-descriptor.  When present, receivers MAY use this value to locate splice events
+field is advisory; SCTE-35 messages are also discoverable via the PMT
+conditional access or registration descriptor.  When present, receivers MAY use this value to locate splice events
 without parsing PMT.  Publishers SHOULD include this field when the track carries
 SCTE-35 splice signaling.
 
@@ -766,7 +770,7 @@ one complete PSI repetition cycle before its target presentation time; when
 `m2tsPsiInterval` is declared, that value bounds the maximum look-back interval
 needed.  A subscriber MAY use the MSF Media Timeline {{MSF}} to resolve this
 time bound to a concrete MOQT Group location for use with a Joining FETCH
-{{MoQTransport}}.  A subscriber MUST NOT begin media presentation until it has
+{{MOQTransport}}.  A subscriber MUST NOT begin media presentation until it has
 received a valid PAT and PMT for the program to be decoded.
 
 # Switching and Alternate Renditions {#switching}
@@ -807,7 +811,7 @@ This packaging format preserves any scrambling or conditional access information
 present in the MPEG-2 Transport Stream.  Transport-stream scrambling is opaque
 to MOQT relays and to this specification.
 
-Object-level encryption MAY be applied using a mechanism such as MoQ Secure
+Object-level encryption MAY be applied using a mechanism such as MOQ Secure
 Objects {{SecureObjects}} when signaled by the catalog.  When object-level
 encryption is used, source packet validation is performed after successful
 decryption.
@@ -821,7 +825,7 @@ defined authorization scheme.
 
 # Security Considerations {#security-considerations}
 
-The security considerations of MOQT {{MoQTransport}}, MSF {{MSF}}, MPEG-2
+The security considerations of MOQT {{MOQTransport}}, MSF {{MSF}}, MPEG-2
 Transport Stream {{ISO138181}}, and any object encryption scheme apply.
 
 Receivers need to treat transport-stream syntax as untrusted input.  Invalid
@@ -840,10 +844,8 @@ SHOULD use an object encryption scheme in addition to transport security.
 
 # IANA Considerations {#iana-considerations}
 
-This document has no IANA actions.
-
-If MSF establishes an IANA registry for packaging values, this document requests
-registration of the value "m2ts" with this document as the reference.
+This document requests that, once MSF establishes an IANA registry for packaging
+values, IANA register the value "m2ts" with this document as the reference.
 
 --- back
 
