@@ -252,12 +252,16 @@ assuming every Object has the declared size.
 
 ## Source Handling and Carriage Modes {#mpts}
 
-A publisher carries a transport stream in one of two modes, signaled by the
-required `m2tsModified` field ({{m2ts-modified}}): unmodified carriage, where
-the source packets are forwarded as received, and modified carriage, where the
-publisher has changed the stream.  The `m2tsMpts` field ({{m2ts-mpts}})
-indicates whether the track carries a single program or a whole multiplex, and
-it alone controls the presence of the per-program fields.
+A publisher carries a transport stream in one of three modes, signaled by the
+required `m2tsModified` field ({{m2ts-modified}}) and the optional
+`m2tsEsPid` field ({{m2ts-es-pid}}).  When `m2tsModified` is false, the
+publisher forwards the source packets without modification (unmodified
+carriage).  When `m2tsModified` is true and `m2tsEsPid` is absent, the
+publisher has modified the stream at the program level (modified carriage).
+When `m2tsModified` is true and `m2tsEsPid` is present, the track carries a
+single elementary stream (ES-level carriage).  The `m2tsMpts` field
+({{m2ts-mpts}}) indicates whether the track carries a single program or a
+whole multiplex, and it alone controls the presence of the per-program fields.
 
 ### Unmodified Carriage {#unmodified-carriage}
 
@@ -336,6 +340,31 @@ tracks are derived from the same MPTS source, the publisher SHOULD use the MSF
 `altGroup` field if the programs are alternate renditions of the same content;
 programs that are independent services SHOULD be published as separate tracks.
 
+### Modified ES-Level Carriage {#es-level-carriage}
+
+When `m2tsEsPid` ({{m2ts-es-pid}}) is present, the track carries a single
+elementary stream or signaling table.  The track payload contains only TS
+packets for the PID identified by `m2tsEsPid`; PAT, PMT, and null packets are
+not included.  Publishers SHOULD use the MSF `initDataList` field to carry the
+PAT and PMT of the originating program so that subscribers can identify the
+program structure before processing elementary-stream packets.
+`m2tsPsiInterval` MUST be absent, because the track payload contains no PSI.
+
+When `m2tsPcrPid` equals `m2tsEsPid`, the track embeds the Program Clock
+Reference and provides the timing reference for the program.  When `m2tsPcrPid`
+identifies a different PID, that PID is carried by another track; a subscriber
+requiring PCR-based timing MUST subscribe to the track carrying that PID.
+
+A publisher producing multiple ES-level tracks for the same program MUST align
+Group boundaries across all those tracks so that matching Group numbers
+correspond to the same presentation position.  This alignment allows a
+subscriber to combine ES-level tracks reliably.  A subscriber combining
+multiple ES-level tracks into a single TS output MUST construct a PAT listing
+the carried program and a PMT listing the PIDs of all subscribed ES-level
+tracks, and MUST interleave packets from all tracks.  The subscriber sources
+PCR from the track where `m2tsPcrPid` equals `m2tsEsPid`.
+
+
 ## PCR and Timing {#pcr-timing}
 
 The Program Clock Reference (PCR) is carried inside adaptation fields of
@@ -398,6 +427,7 @@ Table 1 lists the m2ts-specific fields defined within a track object.
 | M2TS random access            | m2tsRandomAccess        | {{m2ts-random-access}} |
 | M2TS timestamp mode           | m2tsTimestampMode       | {{m2ts-timestamp-mode}} |
 | M2TS SCTE-35 PID              | m2tsScte35Pid           | {{m2ts-scte35-pid}} |
+| M2TS ES PID                   | m2tsEsPid               | {{m2ts-es-pid}} |
 | M2TS MPTS                     | m2tsMpts                | {{m2ts-mpts}} |
 
 Use of the MSF `initRef` and `initDataList` fields by m2ts tracks is described
@@ -446,7 +476,8 @@ Required: Optional    JSON Type: Number    Location: Track Object
 The packet identifier carrying the Program Map Table for `m2tsProgramNumber`.
 This field is advisory and does not replace the Program Association Table or
 Program Map Table carried in the transport stream.  It MUST be absent when
-`m2tsMpts` is true.
+`m2tsMpts` is true.  It MUST be absent when `m2tsEsPid` is present, because
+an ES-level track does not carry a PMT in its payload.
 
 ## M2TS PCR PID {#m2ts-pcr-pid}
 
@@ -455,7 +486,9 @@ Required: Optional    JSON Type: Number    Location: Track Object
 The packet identifier carrying the Program Clock Reference for the program
 identified by `m2tsProgramNumber`.  This field is advisory and does not
 replace PCR signaling in the transport stream.  It MUST be absent when
-`m2tsMpts` is true.
+`m2tsMpts` is true.  When `m2tsEsPid` is present, this PID MAY be carried by
+a different track in the same session; a subscriber requiring PCR-based timing
+MUST subscribe to the track where `m2tsPcrPid` equals `m2tsEsPid`.
 
 ## M2TS PSI Interval {#m2ts-psi-interval}
 
@@ -467,7 +500,8 @@ For single-program tracks, publishers SHOULD repeat PSI at an interval no
 larger than this value for live content.  For `m2tsMpts` tracks, the publisher
 does not control PSI injection; when present, this field describes the source
 multiplex PSI repetition rate and is advisory only.  Subscribers MAY use this
-value to estimate join latency in both modes.
+value to estimate join latency in both modes.  This field MUST be absent when
+`m2tsEsPid` is present, because ES-level tracks carry no PSI in their payload.
 
 ## M2TS Mux Rate {#m2ts-mux-rate}
 
@@ -476,7 +510,8 @@ Required: Optional    JSON Type: Number    Location: Track Object
 The nominal source mux rate of the transport stream in bits per second.
 This field is advisory.  A subscriber reconstructing a constant-bit-rate
 output stream MAY use this value to restore the original mux rate when null
-packets have been removed.
+packets have been removed.  This field MUST be absent when `m2tsEsPid` is
+present.
 
 ## M2TS SI PIDs {#m2ts-si-pids}
 
@@ -486,7 +521,9 @@ The packet identifiers of SI tables retained in the filtered track, in addition
 to those listed in the Program Map Table.  This field is advisory.  Publishers
 SHOULD include this field when they retain DVB or ATSC SI tables.  Subscribers
 MAY use this list to verify which service information tables are present without
-inspecting the packet stream.
+inspecting the packet stream.  This field MUST be absent when `m2tsEsPid` is
+present; at ES-level granularity, each SI table is published as a separate
+track identified by `m2tsEsPid` and the MSF `role` field.
 
 ## M2TS Random Access {#m2ts-random-access}
 
@@ -513,9 +550,33 @@ Required: Optional    JSON Type: Number    Location: Track Object
 
 The PID carrying SCTE-35 splice_info_section() messages for this track.  This
 field is advisory; SCTE-35 messages are also discoverable via the PMT
-conditional access or registration descriptor.  When present, receivers MAY use this value to locate splice events
-without parsing PMT.  Publishers SHOULD include this field when the track carries
-SCTE-35 splice signaling.
+conditional access or registration descriptor.  When present, receivers MAY
+use this value to locate splice events without parsing the PMT.  Publishers
+SHOULD include this field when the track carries SCTE-35 splice signaling.
+This field MUST be absent when `m2tsEsPid` is present; when SCTE-35 is
+published as an ES-level track, the track's `m2tsEsPid` and `role` fields
+identify it.
+
+## M2TS ES PID {#m2ts-es-pid}
+
+Required: Optional    JSON Type: Number    Location: Track Object
+
+The Packet Identifier of the single elementary stream or signaling table
+carried by this track.  When present, the track carries only TS packets for
+this PID; it does not carry PAT, PMT, or null packets.  This field MUST be
+absent when `m2tsMpts` is true.  When `m2tsEsPid` is present, `m2tsModified`
+MUST be true, `m2tsPmtPid` MUST be absent, `m2tsSiPids` MUST be absent, and
+`m2tsScte35Pid` MUST be absent.
+
+For tracks carrying DVB or ATSC service information tables, publishers SHOULD
+set the MSF `role` field to one of the following values: `"nit"` for the
+Network Information Table (PID 0x0010), `"sdt"` for the Service Description
+Table and Bouquet Association Table (PID 0x0011), `"eit"` for the Event
+Information Table (PID 0x0012), and `"tdt"` for the Time and Date Table and
+Time Offset Table (PID 0x0014).  For tracks carrying SCTE-35 splice
+information, publishers SHOULD set `role` to `"scte35"`.  For media
+elementary streams, publishers SHOULD set `role` to the MSF-defined value for
+the stream type, for example `"video"` or `"audio"`.
 
 ## M2TS MPTS {#m2ts-mpts}
 
@@ -772,6 +833,88 @@ PAT and PMT on the new track before routing packets to a decoder.
 }
 ~~~
 
+## ES-Level Tracks - Per-Elementary-Stream Publishing {#example-es-level}
+
+This example shows a live program published as separate ES-level tracks: one
+video track carrying the PCR, two audio tracks for different languages (English
+and Spanish), and one Event Information Table track.  The video and audio
+tracks MUST have synchronized Group boundaries.  A subscriber combines the
+video track and the audio track of its choice by constructing a PAT and PMT
+listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
+
+~~~ json
+{
+  "version": "draft-01",
+  "generatedAt": 1746104606044,
+  "tracks": [
+    {
+      "name": "program-1-video",
+      "namespace": "live.example.com/channel/1",
+      "packaging": "m2ts",
+      "m2tsModified": true,
+      "isLive": true,
+      "targetLatency": 1000,
+      "role": "video",
+      "mimeType": "video/mp2t",
+      "bitrate": 5000000,
+      "m2tsPacketSize": 188,
+      "m2tsPacketsPerObject": 64,
+      "m2tsProgramNumber": 1,
+      "m2tsPcrPid": 257,
+      "m2tsEsPid": 257,
+      "m2tsRandomAccess": true
+    },
+    {
+      "name": "program-1-audio-en",
+      "namespace": "live.example.com/channel/1",
+      "packaging": "m2ts",
+      "m2tsModified": true,
+      "isLive": true,
+      "targetLatency": 1000,
+      "role": "audio",
+      "mimeType": "video/mp2t",
+      "bitrate": 128000,
+      "m2tsPacketSize": 188,
+      "m2tsPacketsPerObject": 32,
+      "m2tsProgramNumber": 1,
+      "m2tsPcrPid": 257,
+      "m2tsEsPid": 258,
+      "m2tsRandomAccess": true
+    },
+    {
+      "name": "program-1-audio-es",
+      "namespace": "live.example.com/channel/1",
+      "packaging": "m2ts",
+      "m2tsModified": true,
+      "isLive": true,
+      "targetLatency": 1000,
+      "role": "audio",
+      "mimeType": "video/mp2t",
+      "bitrate": 128000,
+      "m2tsPacketSize": 188,
+      "m2tsPacketsPerObject": 32,
+      "m2tsProgramNumber": 1,
+      "m2tsPcrPid": 257,
+      "m2tsEsPid": 259,
+      "m2tsRandomAccess": true
+    },
+    {
+      "name": "program-1-eit",
+      "namespace": "live.example.com/channel/1",
+      "packaging": "m2ts",
+      "m2tsModified": true,
+      "isLive": true,
+      "role": "eit",
+      "mimeType": "video/mp2t",
+      "m2tsPacketSize": 188,
+      "m2tsPacketsPerObject": 16,
+      "m2tsProgramNumber": 1,
+      "m2tsEsPid": 18
+    }
+  ]
+}
+~~~
+
 # Subscriber Processing {#subscriber-processing}
 
 A subscriber obtains the catalog using the MSF catalog workflow and subscribes
@@ -799,6 +942,16 @@ needed.  A subscriber MAY use the MSF Media Timeline {{MSF}} to resolve this
 time bound to a concrete MOQT Group location for use with a Joining FETCH
 {{MOQTransport}}.  A subscriber MUST NOT begin media presentation until it has
 received a valid PAT and PMT for the program to be decoded.
+
+When a subscriber receives ES-level tracks ({{es-level-carriage}}), it MUST
+align on the same starting Group number across all subscribed ES-level tracks
+for the same program before combining them.  The subscriber constructs the combined TS
+output by building a PAT listing the carried program and a PMT listing the PIDs
+of all subscribed ES-level tracks, then interleaving packets from all tracks.
+PCR is sourced from the track where `m2tsPcrPid` equals `m2tsEsPid`.  A
+subscriber MUST NOT begin media presentation until it has received at least
+one Group from each subscribed ES-level track and has obtained the originating
+program's PAT and PMT, either from `initDataList` or from the packet stream.
 
 # Switching and Alternate Renditions {#switching}
 
