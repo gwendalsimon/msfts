@@ -347,10 +347,8 @@ elementary stream or signaling table.  The track payload contains only TS
 packets for the PID identified by `m2tsEsPid`; PAT, PMT, and null packets are
 not included.  Publishers SHOULD use the MSF `initDataList` field to carry the
 PAT and PMT of the originating program so that subscribers can identify the
-program structure before processing elementary-stream packets.  When the
-publisher chooses to interleave PAT and PMT in the track payload for inline
-program initialization, `m2tsPsiInterval` SHOULD be declared; otherwise
-`m2tsPsiInterval` MUST be absent.
+program structure before processing elementary-stream packets.
+`m2tsPsiInterval` MUST be absent, because the track payload contains no PSI.
 
 When `m2tsPcrPid` equals `m2tsEsPid`, the track embeds the Program Clock
 Reference and provides the timing reference for the program.  When `m2tsPcrPid`
@@ -508,7 +506,8 @@ For single-program tracks, publishers SHOULD repeat PSI at an interval no
 larger than this value for live content.  For `m2tsMpts` tracks, the publisher
 does not control PSI injection; when present, this field describes the source
 multiplex PSI repetition rate and is advisory only.  Subscribers MAY use this
-value to estimate join latency in both modes.
+value to estimate join latency in both modes.  This field MUST be absent when
+`m2tsEsPid` is present, because ES-level tracks carry no PSI in their payload.
 
 ## M2TS Mux Rate {#m2ts-mux-rate}
 
