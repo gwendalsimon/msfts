@@ -362,9 +362,7 @@ subscriber to combine ES-level tracks reliably.  A subscriber combining
 multiple ES-level tracks into a single TS output MUST construct a PAT listing
 the carried program and a PMT listing the PIDs of all subscribed ES-level
 tracks, and MUST interleave packets from all tracks.  The subscriber sources
-PCR from the track where `m2tsPcrPid` equals `m2tsEsPid`.  When `m2tsMuxRate`
-is declared on the PCR-bearing track, the subscriber SHOULD use that value to
-restore the original mux rate in the combined output.
+PCR from the track where `m2tsPcrPid` equals `m2tsEsPid`.
 
 
 ## PCR and Timing {#pcr-timing}
@@ -512,7 +510,8 @@ Required: Optional    JSON Type: Number    Location: Track Object
 The nominal source mux rate of the transport stream in bits per second.
 This field is advisory.  A subscriber reconstructing a constant-bit-rate
 output stream MAY use this value to restore the original mux rate when null
-packets have been removed.
+packets have been removed.  This field MUST be absent when `m2tsEsPid` is
+present.
 
 ## M2TS SI PIDs {#m2ts-si-pids}
 
