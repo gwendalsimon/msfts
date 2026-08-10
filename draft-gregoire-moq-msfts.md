@@ -366,10 +366,6 @@ PCR from the track where `m2tsPcrPid` equals `m2tsEsPid`.  When `m2tsMuxRate`
 is declared on the PCR-bearing track, the subscriber SHOULD use that value to
 restore the original mux rate in the combined output.
 
-Audio ES-level tracks for the same program MAY share an `altGroup` to indicate
-that they are alternate language renditions.  A subscriber MAY subscribe to
-more than one audio track within an alternate group and include all subscribed
-audio PIDs in the reconstructed PMT.
 
 ## PCR and Timing {#pcr-timing}
 
@@ -841,11 +837,11 @@ PAT and PMT on the new track before routing packets to a decoder.
 ## ES-Level Tracks - Per-Elementary-Stream Publishing {#example-es-level}
 
 This example shows a live program published as separate ES-level tracks: one
-video track carrying the PCR, two alternate audio tracks (English and Spanish),
-and one Event Information Table track.  The video and audio tracks MUST have
-synchronized Group boundaries.  A subscriber combining video and one audio
-track constructs a PAT and PMT listing the two subscribed PIDs and sources PCR
-from the video track (PID 257).
+video track carrying the PCR, two audio tracks for different languages (English
+and Spanish), and one Event Information Table track.  The video and audio
+tracks MUST have synchronized Group boundaries.  A subscriber combines the
+video track and the audio track of its choice by constructing a PAT and PMT
+listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
 
 ~~~ json
 {
@@ -879,7 +875,6 @@ from the video track (PID 257).
       "role": "audio",
       "mimeType": "video/mp2t",
       "bitrate": 128000,
-      "altGroup": 2,
       "m2tsPacketSize": 188,
       "m2tsPacketsPerObject": 32,
       "m2tsProgramNumber": 1,
@@ -897,7 +892,6 @@ from the video track (PID 257).
       "role": "audio",
       "mimeType": "video/mp2t",
       "bitrate": 128000,
-      "altGroup": 2,
       "m2tsPacketSize": 188,
       "m2tsPacketsPerObject": 32,
       "m2tsProgramNumber": 1,
