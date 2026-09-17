@@ -1,5 +1,5 @@
 ---
-title: "MPEG-2 Transport Stream Packaging for Media Over QUIC Transport"
+title: "MPEG-2 Transport Stream Packaging for MOQT"
 abbrev: "MOQT MPEG-2 TS Packaging"
 category: info
 
@@ -62,8 +62,7 @@ informative:
 
 --- abstract
 
-This document extends the Media Over QUIC Transport (MOQT) Streaming Format
-(MSF) catalog by defining the "m2ts" packaging value for carrying MPEG-2
+This document extends the MOQT Streaming Format (MSF) catalog by defining the "m2ts" packaging value for carrying MPEG-2
 Transport Stream and M2TS source packets over MOQT. It defines
 catalog-extension fields for transport-stream track description and specifies
 subscriber behavior for joining, switching, and validating packetized streams.
@@ -72,12 +71,11 @@ subscriber behavior for joining, switching, and validating packetized streams.
 
 # Introduction {#introduction}
 
-MOQ Transport (MOQT) {{MOQTransport}} delivers media as named tracks, which
-the MOQT Streaming Format (MSF) {{MSF}} describes in a catalog. MPEG-2
-Transport Stream MOQT Streaming Format (MSFTS) is a media format designed to
-deliver MPEG-2 Transport Stream (TS) {{ISO138181}} content over MOQT. MSFTS
-extends MSF and retains the scope, capabilities, and features of MSF,
-including the catalog format, the timeline, and alternate rendition switching.
+MPEG-2 Transport Stream MOQT Streaming Format (MSFTS) is an extension of the
+MOQT Streaming Format (MSF) {{MSF}} that delivers MPEG-2 Transport Stream (TS)
+{{ISO138181}} content over MOQT {{MOQTransport}}. MSFTS retains the scope,
+capabilities, and features of MSF, including the catalog format, the timeline,
+and alternate rendition switching.
 MSFTS keeps the transport stream as the media container. A track carries
 either 188-octet TS packets or 192-octet M2TS source packets, and the
 publisher maps consecutive source packets into MOQT Objects. MSFTS is targeted
