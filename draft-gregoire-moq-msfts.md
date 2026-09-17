@@ -66,7 +66,7 @@ This document extends the Media Over QUIC Transport (MOQT) Streaming Format
 (MSF) catalog by defining the "m2ts" packaging value for carrying MPEG-2
 Transport Stream and M2TS source packets over MOQT. It defines
 catalog-extension fields for transport-stream track description and specifies
-receiver behavior for joining, switching, and validating packetized streams.
+subscriber behavior for joining, switching, and validating packetized streams.
 
 --- middle
 
@@ -120,6 +120,17 @@ M2TS source packet:
 Source packet:
 : Either a TS packet or an M2TS source packet. The catalog signals which of the
   two a track carries.
+
+Subscriber:
+: The MOQT endpoint that subscribes to a track and receives its Objects, as
+  defined by {{MOQTransport}}. A subscriber operates on MOQT Objects and
+  produces the reconstructed packet stream.
+
+Receiver:
+: The equipment that consumes the reconstructed packet stream, for example an
+  Integrated Receiver Decoder (IRD). A receiver operates on source packets and
+  needs no knowledge of MOQT. One implementation can act as both a subscriber
+  and a receiver.
 
 Random access point:
 : A point in the packet stream at which a receiver can begin decoding after
@@ -176,7 +187,7 @@ multiple of `m2tsPacketSize`.
 If `m2tsPacketSize` is 188, every source packet MUST begin with the MPEG-2 TS
 sync byte 0x47. If `m2tsPacketSize` is 192, the TS packet begins four octets
 after the start of each source packet and the octet at that position MUST be
-0x47. A receiver MUST treat a packet that fails this validation as invalid
+0x47. A subscriber MUST treat a packet that fails this validation as invalid
 media data for that track.
 
 The source packets from received Objects are concatenated in ascending Group ID
@@ -187,45 +198,30 @@ discontinuous at that point until it reaches a subsequent random access point.
 ## Object Boundaries {#object-boundaries}
 
 Object boundaries are packaging boundaries and do not change MPEG-2 Transport
-Stream semantics. Continuity counters, adaptation fields, Program Clock
-Presentation Time Stamp (PTS), Decoding Time Stamp (DTS), PSI, and other
-transport-stream syntax remain inside the source packets.
+Stream semantics. Continuity counters, adaptation fields, PCR, Presentation
+Time Stamp (PTS), Decoding Time Stamp (DTS), PSI, and other transport-stream
+syntax remain inside the source packets.
 
 When `m2tsModified` ({{m2ts-modified}}) is false, a publisher MUST NOT modify
-the continuity counter of any source packet and MUST NOT remap packet
-identifiers. The modifications permitted when `m2tsModified` is true are
-defined in {{mpts}}.
+the continuity counter of any source packet and MUST NOT remap PIDs.
+{{carriage-modes}} defines the modifications a publisher may make when
+`m2tsModified` is true.
 
-A publisher SHOULD place an independently usable random access point at the
-first media Object of each MOQT Group. For single-program video tracks, this
-normally means that the Group begins at or before the transport-stream packets
-carrying a random access point and includes the PAT and PMT packets required
-for program demultiplexing. Codec-level initialization data travels in band
-within the elementary stream and is therefore present whenever a random access
-point is included.
+## Group Boundaries {#group-boundaries}
 
-When `m2tsRandomAccess` ({{m2ts-random-access}}) is true, the first media Object
-in every Group MUST provide a valid random access starting point for the
-Group.
+For live single-program tracks, a publisher SHOULD start a new MOQT Group at
+each point where the Group content is independently decodable without reference
+to prior Groups. A publisher SHOULD place a random access point at the first
+media Object of each Group, and the Group then includes the PAT and PMT packets
+required for program demultiplexing.
 
-## Group Numbering {#group-numbering}
+{{unmodified-carriage}} defines Group boundary placement for tracks carrying a
+whole multiplex.
 
-For live streams, publishers SHOULD start a new MOQT Group at each point where
-the Group content is independently decodable without reference to prior Groups.
-For video, a valid Group start is any intra-coded access point at which all
-decoder references needed by that Group are present within the Group itself.
-Instantaneous Decoder Refresh (IDR) frames always satisfy this condition.
-A Clean Random Access (CRA) frame MAY serve as a Group start only if no
-subsequent Random Access Skipped Leading (RASL) pictures in that Group
-reference frames from a prior Group. Publishers are not required to start a
-new Group at every intra-coded access point: a CRA whose following RASL
-pictures reference only frames present earlier in the same Group may remain
-interior to that Group.
-The Object ID MUST increase by one for each Object within a Group unless MOQT
-delivery semantics permit gaps that are explicitly intended by the publisher.
-
-For video-on-demand (VOD) streams, Group ID and Object ID assignment SHOULD be stable for a given
-asset so that relays and subscribers can cache and request repeatable ranges.
+The `m2tsRandomAccess` field ({{m2ts-random-access}}) declares whether every
+Group in a track starts with a random access point. When `m2tsRandomAccess` is
+true, the first media Object in every Group MUST provide a valid random access
+starting point for that Group.
 
 ## Packetization {#packetization}
 
@@ -237,10 +233,10 @@ encoder conditions.
 
 If `m2tsPacketsPerObject` is present, it declares the usual number of source
 packets per media Object. The final Object of a Group MAY contain fewer source
-packets. Receivers MUST use the actual Object payload length rather than
+packets. Subscribers MUST use the actual Object payload length rather than
 assuming every Object has the declared size.
 
-## Source Handling and Carriage Modes {#mpts}
+## Source Handling and Carriage Modes {#carriage-modes}
 
 A publisher carries a transport stream in one of three modes, signaled by the
 required `m2tsModified` field ({{m2ts-modified}}) and the optional
@@ -257,7 +253,7 @@ whole multiplex, and it alone controls the presence of the per-program fields.
 
 When `m2tsModified` is false, the publisher forwards the source packets without
 modification: no program selection, no packet identifier remap, no PAT or PMT
-rewrite, and no insertion or removal of null packets. A receiver can
+rewrite, and no insertion or removal of null packets. A subscriber can
 reconstruct the source stream byte-for-byte.
 
 When the source is a single-program transport stream, `m2tsMpts` is false. The
@@ -305,24 +301,31 @@ scrambled transport streams MUST also retain the conditional access packets
 required for descrambling; conditional access integration is application-specific
 and outside the scope of this document.
 
-The Program Map Table references only the PIDs of the selected program's
-elementary streams and PCR; it does not reference the service information (SI)
-tables defined by Digital Video Broadcasting (DVB) and the Advanced Television
-Systems Committee (ATSC): Network Information Table (NIT, 0x0010),
-Service Description Table and Bouquet Association Table (SDT/BAT, 0x0011),
-Event Information Table (EIT, 0x0012), and Time and Date Table with Time
-Offset Table (TDT/TOT, 0x0014), or their ATSC Program and System Information
-Protocol (PSIP) equivalents. The filter
-therefore drops these tables, leaving the resulting track without service
-identity, Electronic Program Guide (EPG), or broadcast time. Publishers
-producing tracks for broadcast or Integrated Receiver Decoder (IRD) reception
-SHOULD retain the SI tables required by the target standard.
-When SI tables are retained, publishers SHOULD declare the additional PIDs
-using `m2tsSiPids` ({{m2ts-si-pids}}) so that subscribers can verify which
-tables are present. Because SDT and EIT carried from an MPTS describe all
-programs in the multiplex, publishers SHOULD filter or rewrite these tables
-to include only the service and schedule entries for the carried program;
-NIT and TDT/TOT are broadcast-wide and do not require per-program rewriting.
+Filtering to a single program drops the service information (SI) tables,
+because the PMT references only the elementary stream PIDs and the PCR PID of
+the selected program. Digital Video Broadcasting (DVB) carries those tables on
+fixed PIDs that no PMT lists:
+
+| Table                                                | PID    |
+|:=====================================================|:=======|
+| Network Information Table (NIT)                      | 0x0010 |
+| Service Description Table and Bouquet Association Table (SDT/BAT) | 0x0011 |
+| Event Information Table (EIT)                        | 0x0012 |
+| Time and Date Table and Time Offset Table (TDT/TOT)  | 0x0014 |
+{: #si-tables title="DVB service information tables"}
+
+The Advanced Television Systems Committee (ATSC) carries equivalent information
+in its Program and System Information Protocol (PSIP) tables. A track filtered
+without these tables has no service identity, no Electronic Program Guide
+(EPG), and no broadcast time. A publisher producing tracks for broadcast or IRD
+reception SHOULD retain the SI tables that the target standard requires, and
+SHOULD declare their PIDs using `m2tsSiPids` ({{m2ts-si-pids}}) so that
+subscribers can verify which tables are present.
+
+SDT and EIT carried from an MPTS describe every program in the multiplex, so a
+publisher retaining them SHOULD filter or rewrite them to leave only the
+service and schedule entries for the carried program. NIT, TDT, and TOT are
+broadcast-wide and need no per-program rewriting.
 
 The `m2tsProgramNumber` field ({{m2ts-program-number}}) SHOULD be present on
 per-program tracks to identify the program carried. When multiple per-program
@@ -378,7 +381,7 @@ mux rate.
 Note: The 33-bit PCR base field wraps around after approximately 26.5 hours of
 continuous stream time. For long-running live streams this is a normal event;
 receivers should handle it as a continuous timeline continuation rather than a
-discontinuity. Receivers that use the MSF Media Timeline {{MSF}} for playout
+discontinuity. Subscribers that use the MSF Media Timeline {{MSF}} for playout
 timing can rely on its monotonic wall-clock abstraction independently of PCR
 wrap-around.
 
@@ -401,7 +404,8 @@ fields it does not understand.
 
 ## Track Object Fields {#track-fields}
 
-Table 1 lists the m2ts-specific fields defined within a track object.
+{{track-fields-table}} lists the m2ts-specific fields defined within a track
+object.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
@@ -419,6 +423,7 @@ Table 1 lists the m2ts-specific fields defined within a track object.
 | M2TS SCTE-35 PID              | m2tsScte35Pid           | {{m2ts-scte35-pid}} |
 | M2TS ES PID                   | m2tsEsPid               | {{m2ts-es-pid}} |
 | M2TS MPTS                     | m2tsMpts                | {{m2ts-mpts}} |
+{: #track-fields-table title="M2TS track object fields"}
 
 Use of the MSF `initRef` and `initDataList` fields by m2ts tracks is described
 in {{init-data}}.
@@ -440,14 +445,14 @@ When true, the published packet stream is not a byte-for-byte copy of the
 source. The publisher has changed it, for example by selecting a program,
 filtering packets, rewriting the PAT or PMT, or adding or removing null packets.
 When false, the publisher MUST forward the source packets without modification,
-so a receiver can reconstruct the source stream byte-for-byte.
+so a subscriber can reconstruct the source stream byte-for-byte.
 
 ## M2TS Packets per Object {#m2ts-packets-per-object}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The usual number of source packets carried by each media Object. This field is
-advisory. Receivers MUST validate each Object using its actual payload length.
+advisory. Subscribers MUST validate each Object using its actual payload length.
 
 ## M2TS Program Number {#m2ts-program-number}
 
@@ -519,10 +524,9 @@ track identified by `m2tsEsPid` and the MSF `role` field.
 
 Required: Optional    JSON Type: Boolean    Location: Track Object
 
-When true, the first media Object in every MOQT Group provides a valid
-random access starting point for the Group. When absent or false,
-subscribers MUST inspect the transport-stream payload to determine where
-decoding can begin.
+When true, every MOQT Group starts with a random access point, as defined in
+{{group-boundaries}}. When absent or false, this document makes no guarantee
+about where in a Group decoding can begin.
 
 ## M2TS Timestamp Mode {#m2ts-timestamp-mode}
 
@@ -585,13 +589,17 @@ an `initDataList` entry whose `type` MUST be "inline". The Base64 {{BASE64}}
 decoded value of the entry's `data` field MUST be a sequence of whole source
 packets using the packet size declared by `m2tsPacketSize`.
 
+Codec-level initialization data does not need an `initDataList` entry.
+Parameter sets travel in band within the elementary stream and are therefore
+present whenever a random access point is included.
+
 Publishers SHOULD include current PAT and PMT packets in the referenced
 initialization data when those tables are not guaranteed to be available at the
 first Object of each Group. When PSI changes within a live track, the
 publisher SHOULD publish an updated initialization data entry in a new
 independent catalog before publishing media Objects that rely on the changed
 PSI. An update to the root `initDataList` MUST NOT be expressed as an MSF delta
-update. Receivers MUST NOT assume that referenced initialization data remains
+update. Subscribers MUST NOT assume that referenced initialization data remains
 valid after the MPEG-2 PSI `version_number` changes; updated PSI in media
 Objects takes precedence.
 
@@ -661,7 +669,7 @@ The following examples are non-normative.
 }
 ~~~
 
-## VOD Transport Stream {#example-vod}
+## Video-on-Demand Transport Stream {#example-vod}
 
 ~~~ json
 {
@@ -961,7 +969,7 @@ boundaries or at transport-stream random access points that it can
 independently decode.
 
 This document does not require continuity counter values or PID assignments to
-match across alternate tracks. Receivers MUST treat a switch between tracks as
+match across alternate tracks. Subscribers MUST treat a switch between tracks as
 a packet-stream discontinuity unless application-specific signaling establishes
 stronger continuity.
 
