@@ -161,16 +161,12 @@ publisher to the subscriber.
 
 # Media Packaging {#media-packaging}
 
-An mpeg2ts-packaged MOQT Track carries a single ordered packet stream. Each MOQT
-Object payload is a concatenation of one or more whole source packets. The
-publisher MUST NOT split a source packet across MOQT Objects.
-
-When this packaging mode is used for a track, the MSF catalog `packaging` field
-MUST be present and MUST be populated with the value "mpeg2ts".
+An mpeg2ts-packaged MOQT Track carries a single ordered packet stream. A track
+using this packaging MUST set the MSF catalog `packaging` field to "mpeg2ts".
 
 ## Object Payload Format {#object-payload-format}
 
-The payload of each media Object is:
+The payload of each MOQT Object is a sequence of whole source packets:
 
 ~~~ ascii-art
 +===============+===============+=====+===============+
@@ -178,18 +174,22 @@ The payload of each media Object is:
 +===============+===============+=====+===============+
 ~~~
 
-The packet size is signaled by `mpeg2tsPacketSize` ({{mpeg2ts-packet-size}}). The
-payload length of every media Object on an mpeg2ts track MUST be an integer
-multiple of `mpeg2tsPacketSize`.
+Every source packet on a track has the same size, either 188 or 192 octets, as
+`mpeg2tsPacketSize` ({{mpeg2ts-packet-size}}) declares. A subscriber checks two
+properties of each Object payload:
 
-If `mpeg2tsPacketSize` is 188, every source packet MUST begin with the MPEG-2 TS
-sync byte 0x47. If `mpeg2tsPacketSize` is 192, the TS packet begins four octets
-after the start of each source packet and the octet at that position MUST be
-0x47. A subscriber MUST treat a packet that fails this validation as invalid
-media data for that track.
+* The payload MUST contain only whole source packets, so its length is a
+  multiple of `mpeg2tsPacketSize`.
+* Every source packet MUST carry the MPEG-2 TS sync byte 0x47. When
+  `mpeg2tsPacketSize` is 188, the sync byte is the first octet of the packet.
+  When `mpeg2tsPacketSize` is 192, it is the fifth, because a four-octet
+  timestamp precedes the TS packet.
 
-The source packets from received Objects are concatenated in ascending Group ID
-and Object ID order to reconstruct the packet stream. A subscriber that skips
+A subscriber MUST reject an Object that fails one of these checks.
+
+A subscriber reconstructs the packet stream by concatenating the source packets
+from received Objects in ascending Group ID and Object ID order. A subscriber
+that skips
 or fails to receive an Object MUST consider the reconstructed packet stream
 discontinuous at that point until it reaches a subsequent random access point.
 
@@ -210,29 +210,15 @@ the continuity counter of any source packet and MUST NOT remap PIDs.
 For live single-program tracks, a publisher SHOULD start a new MOQT Group at
 each point where the Group content is independently decodable without reference
 to prior Groups. A publisher SHOULD place a random access point at the first
-media Object of each Group, and the Group then includes the PAT and PMT packets
+Object of each Group, and the Group then includes the PAT and PMT packets
 required for program demultiplexing.
 
 {{unmodified-carriage}} defines Group boundary placement for tracks carrying a
 whole multiplex.
 
-The `mpeg2tsRandomAccess` field ({{mpeg2ts-random-access}}) declares whether every
-Group in a track starts with a random access point. When `mpeg2tsRandomAccess` is
-true, the first media Object in every Group MUST provide a valid random access
-starting point for that Group.
-
-## Packetization {#packetization}
-
-Publishers SHOULD choose Object sizes that are large enough to amortize MOQT
-object overhead and small enough to avoid excessive head-of-line delay at the
-application layer. The number of source packets per Object can vary, but a
-publisher SHOULD keep it stable within a track unless adapting to network or
-encoder conditions.
-
-If `mpeg2tsPacketsPerObject` is present, it declares the usual number of source
-packets per media Object. The final Object of a Group MAY contain fewer source
-packets. Subscribers MUST use the actual Object payload length rather than
-assuming every Object has the declared size.
+When `mpeg2tsRandomAccess` ({{mpeg2ts-random-access}}) is true, the first Object
+in every Group MUST provide a valid random access starting point for that
+Group.
 
 ## Source Handling and Carriage Modes {#carriage-modes}
 
@@ -407,20 +393,19 @@ object.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
-| Packet size                   | mpeg2tsPacketSize           | {{mpeg2ts-packet-size}} |
-| Stream modified               | mpeg2tsModified             | {{mpeg2ts-modified}} |
-| Packets per Object            | mpeg2tsPacketsPerObject     | {{mpeg2ts-packets-per-object}} |
-| Program number                | mpeg2tsProgramNumber        | {{mpeg2ts-program-number}} |
-| PMT PID                       | mpeg2tsPmtPid               | {{mpeg2ts-pmt-pid}} |
-| PCR PID                       | mpeg2tsPcrPid               | {{mpeg2ts-pcr-pid}} |
-| PSI interval                  | mpeg2tsPsiInterval          | {{mpeg2ts-psi-interval}} |
-| Mux rate                      | mpeg2tsMuxRate              | {{mpeg2ts-mux-rate}} |
-| SI PIDs                       | mpeg2tsSiPids               | {{mpeg2ts-si-pids}} |
-| Random access                 | mpeg2tsRandomAccess         | {{mpeg2ts-random-access}} |
-| Timestamp mode                | mpeg2tsTimestampMode        | {{mpeg2ts-timestamp-mode}} |
-| SCTE-35 PID                   | mpeg2tsScte35Pid            | {{mpeg2ts-scte35-pid}} |
-| ES PID                        | mpeg2tsEsPid                | {{mpeg2ts-es-pid}} |
-| MPTS                          | mpeg2tsMpts                 | {{mpeg2ts-mpts}} |
+| Packet size                   | mpeg2tsPacketSize         | {{mpeg2ts-packet-size}} |
+| Stream modified               | mpeg2tsModified           | {{mpeg2ts-modified}} |
+| Program number                | mpeg2tsProgramNumber      | {{mpeg2ts-program-number}} |
+| PMT PID                       | mpeg2tsPmtPid             | {{mpeg2ts-pmt-pid}} |
+| PCR PID                       | mpeg2tsPcrPid             | {{mpeg2ts-pcr-pid}} |
+| PSI interval                  | mpeg2tsPsiInterval        | {{mpeg2ts-psi-interval}} |
+| Mux rate                      | mpeg2tsMuxRate            | {{mpeg2ts-mux-rate}} |
+| SI PIDs                       | mpeg2tsSiPids             | {{mpeg2ts-si-pids}} |
+| Random access                 | mpeg2tsRandomAccess       | {{mpeg2ts-random-access}} |
+| Timestamp mode                | mpeg2tsTimestampMode      | {{mpeg2ts-timestamp-mode}} |
+| SCTE-35 PID                   | mpeg2tsScte35Pid          | {{mpeg2ts-scte35-pid}} |
+| ES PID                        | mpeg2tsEsPid              | {{mpeg2ts-es-pid}} |
+| MPTS                          | mpeg2tsMpts               | {{mpeg2ts-mpts}} |
 {: #track-fields-table title="Track object fields defined by this document"}
 
 Use of the MSF `initRef` and `initDataList` fields by mpeg2ts tracks is described
@@ -444,13 +429,6 @@ source. The publisher has changed it, for example by selecting a program,
 filtering packets, rewriting the PAT or PMT, or adding or removing null packets.
 When false, the publisher MUST forward the source packets without modification,
 so a subscriber can reconstruct the source stream byte-for-byte.
-
-## Packets per Object {#mpeg2ts-packets-per-object}
-
-Required: Optional    JSON Type: Number    Location: Track Object
-
-The usual number of source packets carried by each media Object. This field is
-advisory. Subscribers MUST validate each Object using its actual payload length.
 
 ## Program Number {#mpeg2ts-program-number}
 
@@ -595,7 +573,7 @@ Publishers SHOULD include current PAT and PMT packets in the referenced
 initialization data when those tables are not guaranteed to be available at the
 first Object of each Group. When PSI changes within a live track, the
 publisher SHOULD publish an updated initialization data entry in a new
-independent catalog before publishing media Objects that rely on the changed
+independent catalog before publishing Objects that rely on the changed
 PSI. An update to the root `initDataList` MUST NOT be expressed as an MSF delta
 update. Subscribers MUST NOT assume that referenced initialization data remains
 valid after the MPEG-2 PSI `version_number` changes; updated PSI in media
@@ -629,7 +607,6 @@ The following examples are non-normative.
       "mimeType": "video/mp2t",
       "bitrate": 6000000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPmtPid": 256,
       "mpeg2tsPcrPid": 257,
@@ -658,7 +635,6 @@ The following examples are non-normative.
       "mimeType": "video/mp2t",
       "bitrate": 12000000,
       "mpeg2tsPacketSize": 192,
-      "mpeg2tsPacketsPerObject": 32,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsTimestampMode": "arrival-time",
       "mpeg2tsRandomAccess": true
@@ -684,7 +660,6 @@ The following examples are non-normative.
       "mimeType": "video/mp2t",
       "bitrate": 4500000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 96,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsRandomAccess": true
     }
@@ -715,7 +690,6 @@ used because the programs carry different content.
       "mimeType": "video/mp2t",
       "bitrate": 6000000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPmtPid": 256,
       "mpeg2tsPcrPid": 257,
@@ -733,7 +707,6 @@ used because the programs carry different content.
       "mimeType": "video/mp2t",
       "bitrate": 4000000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsProgramNumber": 2,
       "mpeg2tsPmtPid": 512,
       "mpeg2tsPcrPid": 513,
@@ -766,7 +739,6 @@ advisory hint; its value is not normative for MPTS tracks.
       "mimeType": "video/mp2t",
       "bitrate": 20000000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsMpts": true,
       "mpeg2tsPsiInterval": 100
     }
@@ -799,7 +771,6 @@ PAT and PMT on the new track before routing packets to a decoder.
       "bitrate": 6000000,
       "altGroup": 1,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPmtPid": 256,
       "mpeg2tsPcrPid": 257,
@@ -818,7 +789,6 @@ PAT and PMT on the new track before routing packets to a decoder.
       "bitrate": 2000000,
       "altGroup": 1,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPmtPid": 512,
       "mpeg2tsPcrPid": 513,
@@ -854,7 +824,6 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
       "mimeType": "video/mp2t",
       "bitrate": 5000000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 64,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
       "mpeg2tsEsPid": 257,
@@ -871,7 +840,6 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
       "mimeType": "video/mp2t",
       "bitrate": 128000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 32,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
       "mpeg2tsEsPid": 258,
@@ -888,7 +856,6 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
       "mimeType": "video/mp2t",
       "bitrate": 128000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 32,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
       "mpeg2tsEsPid": 259,
@@ -903,7 +870,6 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
       "role": "eit",
       "mimeType": "video/mp2t",
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsPacketsPerObject": 16,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsEsPid": 18
     }
@@ -914,7 +880,7 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
 # Subscriber Processing {#subscriber-processing}
 
 A subscriber obtains the catalog using the MSF catalog workflow and subscribes
-to one or more mpeg2ts tracks. For each received media Object, the subscriber:
+to one or more mpeg2ts tracks. For each received Object, the subscriber:
 
 1. Validates that the payload length is a non-zero integer multiple of
    `mpeg2tsPacketSize`.
