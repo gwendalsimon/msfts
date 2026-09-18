@@ -62,7 +62,7 @@ informative:
 
 --- abstract
 
-This document extends the MOQT Streaming Format (MSF) catalog by defining the "m2ts" packaging value for carrying MPEG-2
+This document extends the MOQT Streaming Format (MSF) catalog by defining the "mpeg2ts" packaging value for carrying MPEG-2
 Transport Stream and M2TS source packets over MOQT. It defines
 catalog-extension fields for transport-stream track description and specifies
 subscriber behavior for joining, switching, and validating packetized streams.
@@ -91,7 +91,7 @@ All specifications, requirements, and terminology defined in {{MSF}} apply to
 implementations of this extension unless explicitly noted otherwise in this
 document. MSFTS does not use the Low Overhead Media Container (LOC) {{LOC}}
 packaging defined in {{MSF}}. This document defines the equivalent behavior
-for m2ts-packaged tracks.
+for mpeg2ts-packaged tracks.
 
 This document uses two unrelated version numbers. The catalog `version` field
 carries the MSF revision. The MSFTS format version given in {{introduction}}
@@ -161,12 +161,12 @@ publisher to the subscriber.
 
 # Media Packaging {#media-packaging}
 
-An m2ts-packaged MOQT Track carries a single ordered packet stream. Each MOQT
+An mpeg2ts-packaged MOQT Track carries a single ordered packet stream. Each MOQT
 Object payload is a concatenation of one or more whole source packets. The
 publisher MUST NOT split a source packet across MOQT Objects.
 
 When this packaging mode is used for a track, the MSF catalog `packaging` field
-MUST be present and MUST be populated with the value "m2ts".
+MUST be present and MUST be populated with the value "mpeg2ts".
 
 ## Object Payload Format {#object-payload-format}
 
@@ -178,12 +178,12 @@ The payload of each media Object is:
 +===============+===============+=====+===============+
 ~~~
 
-The packet size is signaled by `m2tsPacketSize` ({{m2ts-packet-size}}). The
-payload length of every media Object on an m2ts track MUST be an integer
-multiple of `m2tsPacketSize`.
+The packet size is signaled by `mpeg2tsPacketSize` ({{mpeg2ts-packet-size}}). The
+payload length of every media Object on an mpeg2ts track MUST be an integer
+multiple of `mpeg2tsPacketSize`.
 
-If `m2tsPacketSize` is 188, every source packet MUST begin with the MPEG-2 TS
-sync byte 0x47. If `m2tsPacketSize` is 192, the TS packet begins four octets
+If `mpeg2tsPacketSize` is 188, every source packet MUST begin with the MPEG-2 TS
+sync byte 0x47. If `mpeg2tsPacketSize` is 192, the TS packet begins four octets
 after the start of each source packet and the octet at that position MUST be
 0x47. A subscriber MUST treat a packet that fails this validation as invalid
 media data for that track.
@@ -200,10 +200,10 @@ Stream semantics. Continuity counters, adaptation fields, PCR, Presentation
 Time Stamp (PTS), Decoding Time Stamp (DTS), PSI, and other transport-stream
 syntax remain inside the source packets.
 
-When `m2tsModified` ({{m2ts-modified}}) is false, a publisher MUST NOT modify
+When `mpeg2tsModified` ({{mpeg2ts-modified}}) is false, a publisher MUST NOT modify
 the continuity counter of any source packet and MUST NOT remap PIDs.
 {{carriage-modes}} defines the modifications a publisher may make when
-`m2tsModified` is true.
+`mpeg2tsModified` is true.
 
 ## Group Boundaries {#group-boundaries}
 
@@ -216,8 +216,8 @@ required for program demultiplexing.
 {{unmodified-carriage}} defines Group boundary placement for tracks carrying a
 whole multiplex.
 
-The `m2tsRandomAccess` field ({{m2ts-random-access}}) declares whether every
-Group in a track starts with a random access point. When `m2tsRandomAccess` is
+The `mpeg2tsRandomAccess` field ({{mpeg2ts-random-access}}) declares whether every
+Group in a track starts with a random access point. When `mpeg2tsRandomAccess` is
 true, the first media Object in every Group MUST provide a valid random access
 starting point for that Group.
 
@@ -229,7 +229,7 @@ application layer. The number of source packets per Object can vary, but a
 publisher SHOULD keep it stable within a track unless adapting to network or
 encoder conditions.
 
-If `m2tsPacketsPerObject` is present, it declares the usual number of source
+If `mpeg2tsPacketsPerObject` is present, it declares the usual number of source
 packets per media Object. The final Object of a Group MAY contain fewer source
 packets. Subscribers MUST use the actual Object payload length rather than
 assuming every Object has the declared size.
@@ -237,44 +237,44 @@ assuming every Object has the declared size.
 ## Source Handling and Carriage Modes {#carriage-modes}
 
 A publisher carries a transport stream in one of three modes, signaled by the
-required `m2tsModified` field ({{m2ts-modified}}) and the optional
-`m2tsEsPid` field ({{m2ts-es-pid}}). When `m2tsModified` is false, the
+required `mpeg2tsModified` field ({{mpeg2ts-modified}}) and the optional
+`mpeg2tsEsPid` field ({{mpeg2ts-es-pid}}). When `mpeg2tsModified` is false, the
 publisher forwards the source packets without modification (unmodified
-carriage). When `m2tsModified` is true and `m2tsEsPid` is absent, the
+carriage). When `mpeg2tsModified` is true and `mpeg2tsEsPid` is absent, the
 publisher has modified the stream at the program level (modified carriage).
-When `m2tsModified` is true and `m2tsEsPid` is present, the track carries a
-single elementary stream (ES-level carriage). The `m2tsMpts` field
-({{m2ts-mpts}}) indicates whether the track carries a single program or a
+When `mpeg2tsModified` is true and `mpeg2tsEsPid` is present, the track carries a
+single elementary stream (ES-level carriage). The `mpeg2tsMpts` field
+({{mpeg2ts-mpts}}) indicates whether the track carries a single program or a
 whole multiplex, and it alone controls the presence of the per-program fields.
 
 ### Unmodified Carriage {#unmodified-carriage}
 
-When `m2tsModified` is false, the publisher forwards the source packets without
+When `mpeg2tsModified` is false, the publisher forwards the source packets without
 modification: no program selection, no packet identifier remap, no PAT or PMT
 rewrite, and no insertion or removal of null packets. A subscriber can
 reconstruct the source stream byte-for-byte.
 
-When the source is a single-program transport stream, `m2tsMpts` is false. The
+When the source is a single-program transport stream, `mpeg2tsMpts` is false. The
 source Program Association Table already lists exactly one program, so the
-per-program fields `m2tsProgramNumber`, `m2tsPmtPid`, and `m2tsPcrPid` SHOULD be
+per-program fields `mpeg2tsProgramNumber`, `mpeg2tsPmtPid`, and `mpeg2tsPcrPid` SHOULD be
 present to identify the carried program.
 
-When the source is a multi-program transport stream, `m2tsMpts` is true and all
+When the source is a multi-program transport stream, `mpeg2tsMpts` is true and all
 source packets are emitted as received. Because no program is selected, the
-per-program fields `m2tsProgramNumber`, `m2tsPmtPid`, and `m2tsPcrPid` MUST be
+per-program fields `mpeg2tsProgramNumber`, `mpeg2tsPmtPid`, and `mpeg2tsPcrPid` MUST be
 absent, and per-track program subscription and the subscriber join behavior
 defined in this document do not apply. Group boundary placement depends on
 whether the publisher can identify random access points across the multiplex:
 if it can, it MAY align Group boundaries to those points and set
-`m2tsRandomAccess` to true; otherwise it SHOULD start a new Group after a fixed
+`mpeg2tsRandomAccess` to true; otherwise it SHOULD start a new Group after a fixed
 number of Objects.
 
 ### Modified Carriage {#modified-carriage}
 
-When `m2tsModified` is true, the publisher has changed the source stream, for
+When `mpeg2tsModified` is true, the publisher has changed the source stream, for
 example by selecting a program, filtering packets, rewriting the PAT or PMT, or
 adding or removing null packets. A publisher that makes any of these changes
-MUST set `m2tsModified` to true.
+MUST set `mpeg2tsModified` to true.
 
 A publisher deriving a per-program track SHOULD filter the source packets so
 that each track contains only:
@@ -292,7 +292,7 @@ Removing null packets changes the inter-packet byte spacing that
 constant-bit-rate receivers use to recover the mux clock. A subscriber
 wishing to reconstruct a constant-bit-rate output stream cannot derive the
 original rate from the stream alone; publishers that remove null packets
-SHOULD declare the source mux rate using `m2tsMuxRate` ({{m2ts-mux-rate}}).
+SHOULD declare the source mux rate using `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}).
 
 These rules apply to unscrambled transport stream sources. Publishers filtering
 scrambled transport streams MUST also retain the conditional access packets
@@ -317,7 +317,7 @@ in its Program and System Information Protocol (PSIP) tables. A track filtered
 without these tables has no service identity, no Electronic Program Guide
 (EPG), and no broadcast time. A publisher producing tracks for broadcast or IRD
 reception SHOULD retain the SI tables that the target standard requires, and
-SHOULD declare their PIDs using `m2tsSiPids` ({{m2ts-si-pids}}) so that
+SHOULD declare their PIDs using `mpeg2tsSiPids` ({{mpeg2ts-si-pids}}) so that
 subscribers can verify which tables are present.
 
 SDT and EIT carried from an MPTS describe every program in the multiplex, so a
@@ -325,7 +325,7 @@ publisher retaining them SHOULD filter or rewrite them to leave only the
 service and schedule entries for the carried program. NIT, TDT, and TOT are
 broadcast-wide and need no per-program rewriting.
 
-The `m2tsProgramNumber` field ({{m2ts-program-number}}) SHOULD be present on
+The `mpeg2tsProgramNumber` field ({{mpeg2ts-program-number}}) SHOULD be present on
 per-program tracks to identify the program carried. When multiple per-program
 tracks are derived from the same MPTS source, the publisher SHOULD use the MSF
 `altGroup` field if the programs are alternate renditions of the same content;
@@ -333,16 +333,16 @@ programs that are independent services SHOULD be published as separate tracks.
 
 ### Modified ES-Level Carriage {#es-level-carriage}
 
-When `m2tsEsPid` ({{m2ts-es-pid}}) is present, the track carries a single
+When `mpeg2tsEsPid` ({{mpeg2ts-es-pid}}) is present, the track carries a single
 elementary stream or signaling table. The track payload contains only TS
-packets for the PID identified by `m2tsEsPid`; PAT, PMT, and null packets are
+packets for the PID identified by `mpeg2tsEsPid`; PAT, PMT, and null packets are
 not included. Publishers SHOULD use the MSF `initDataList` field to carry the
 PAT and PMT of the originating program so that subscribers can identify the
 program structure before processing elementary-stream packets.
-`m2tsPsiInterval` MUST be absent, because the track payload contains no PSI.
+`mpeg2tsPsiInterval` MUST be absent, because the track payload contains no PSI.
 
-When `m2tsPcrPid` equals `m2tsEsPid`, the track embeds the Program Clock
-Reference and provides the timing reference for the program. When `m2tsPcrPid`
+When `mpeg2tsPcrPid` equals `mpeg2tsEsPid`, the track embeds the Program Clock
+Reference and provides the timing reference for the program. When `mpeg2tsPcrPid`
 identifies a different PID, that PID is carried by another track; a subscriber
 requiring PCR-based timing MUST subscribe to the track carrying that PID.
 
@@ -353,7 +353,7 @@ subscriber to combine ES-level tracks reliably. A subscriber combining
 multiple ES-level tracks into a single TS output MUST construct a PAT listing
 the carried program and a PMT listing the PIDs of all subscribed ES-level
 tracks, and MUST interleave packets from all tracks. The subscriber sources
-PCR from the track where `m2tsPcrPid` equals `m2tsEsPid`.
+PCR from the track where `mpeg2tsPcrPid` equals `mpeg2tsEsPid`.
 
 
 ## PCR and Timing {#pcr-timing}
@@ -392,8 +392,8 @@ does not specify SCTE-35 processing.
 
 # Catalog {#catalog}
 
-An m2ts track is described by the MSF catalog {{MSF}}. This document extends
-that catalog by defining the `m2ts` value for the inherited `packaging` field
+An mpeg2ts track is described by the MSF catalog {{MSF}}. This document extends
+that catalog by defining the `mpeg2ts` value for the inherited `packaging` field
 and additional fields for track objects that use that value. The catalog track
 name, root catalog fields, common track fields, delta update rules, variable
 substitution rules, and authorization signaling are inherited unchanged from
@@ -402,31 +402,31 @@ fields it does not understand.
 
 ## Track Object Fields {#track-fields}
 
-{{track-fields-table}} lists the m2ts-specific fields defined within a track
+{{track-fields-table}} lists the mpeg2ts-specific fields defined within a track
 object.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
-| M2TS packet size              | m2tsPacketSize          | {{m2ts-packet-size}} |
-| M2TS modified                 | m2tsModified            | {{m2ts-modified}} |
-| M2TS packets per Object       | m2tsPacketsPerObject    | {{m2ts-packets-per-object}} |
-| M2TS program number           | m2tsProgramNumber       | {{m2ts-program-number}} |
-| M2TS PMT PID                  | m2tsPmtPid              | {{m2ts-pmt-pid}} |
-| M2TS PCR PID                  | m2tsPcrPid              | {{m2ts-pcr-pid}} |
-| M2TS PSI interval             | m2tsPsiInterval         | {{m2ts-psi-interval}} |
-| M2TS SI PIDs                  | m2tsSiPids              | {{m2ts-si-pids}} |
-| M2TS mux rate                 | m2tsMuxRate             | {{m2ts-mux-rate}} |
-| M2TS random access            | m2tsRandomAccess        | {{m2ts-random-access}} |
-| M2TS timestamp mode           | m2tsTimestampMode       | {{m2ts-timestamp-mode}} |
-| M2TS SCTE-35 PID              | m2tsScte35Pid           | {{m2ts-scte35-pid}} |
-| M2TS ES PID                   | m2tsEsPid               | {{m2ts-es-pid}} |
-| M2TS MPTS                     | m2tsMpts                | {{m2ts-mpts}} |
-{: #track-fields-table title="M2TS track object fields"}
+| Packet size                   | mpeg2tsPacketSize           | {{mpeg2ts-packet-size}} |
+| Stream modified               | mpeg2tsModified             | {{mpeg2ts-modified}} |
+| Packets per Object            | mpeg2tsPacketsPerObject     | {{mpeg2ts-packets-per-object}} |
+| Program number                | mpeg2tsProgramNumber        | {{mpeg2ts-program-number}} |
+| PMT PID                       | mpeg2tsPmtPid               | {{mpeg2ts-pmt-pid}} |
+| PCR PID                       | mpeg2tsPcrPid               | {{mpeg2ts-pcr-pid}} |
+| PSI interval                  | mpeg2tsPsiInterval          | {{mpeg2ts-psi-interval}} |
+| Mux rate                      | mpeg2tsMuxRate              | {{mpeg2ts-mux-rate}} |
+| SI PIDs                       | mpeg2tsSiPids               | {{mpeg2ts-si-pids}} |
+| Random access                 | mpeg2tsRandomAccess         | {{mpeg2ts-random-access}} |
+| Timestamp mode                | mpeg2tsTimestampMode        | {{mpeg2ts-timestamp-mode}} |
+| SCTE-35 PID                   | mpeg2tsScte35Pid            | {{mpeg2ts-scte35-pid}} |
+| ES PID                        | mpeg2tsEsPid                | {{mpeg2ts-es-pid}} |
+| MPTS                          | mpeg2tsMpts                 | {{mpeg2ts-mpts}} |
+{: #track-fields-table title="Track object fields defined by this document"}
 
-Use of the MSF `initRef` and `initDataList` fields by m2ts tracks is described
+Use of the MSF `initRef` and `initDataList` fields by mpeg2ts tracks is described
 in {{init-data}}.
 
-## M2TS Packet Size {#m2ts-packet-size}
+## Packet Size {#mpeg2ts-packet-size}
 
 Required: Yes    JSON Type: Number    Location: Track Object
 
@@ -435,7 +435,7 @@ of 188 identifies ordinary MPEG-2 TS packets. A value of 192 identifies M2TS
 source packets with a four-octet timestamp prefix followed by a 188-octet TS
 packet.
 
-## M2TS Modified {#m2ts-modified}
+## Stream Modified {#mpeg2ts-modified}
 
 Required: Yes    JSON Type: Boolean    Location: Track Object
 
@@ -445,68 +445,68 @@ filtering packets, rewriting the PAT or PMT, or adding or removing null packets.
 When false, the publisher MUST forward the source packets without modification,
 so a subscriber can reconstruct the source stream byte-for-byte.
 
-## M2TS Packets per Object {#m2ts-packets-per-object}
+## Packets per Object {#mpeg2ts-packets-per-object}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The usual number of source packets carried by each media Object. This field is
 advisory. Subscribers MUST validate each Object using its actual payload length.
 
-## M2TS Program Number {#m2ts-program-number}
+## Program Number {#mpeg2ts-program-number}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The MPEG-2 Transport Stream program number carried by this track. When
 present, the track SHOULD carry packets from only that program. When absent
-and `m2tsMpts` is not true, subscribers MAY select a program using local
+and `mpeg2tsMpts` is not true, subscribers MAY select a program using local
 policy or transport-stream signaling. This field MUST be absent when
-`m2tsMpts` is true.
+`mpeg2tsMpts` is true.
 
-## M2TS PMT PID {#m2ts-pmt-pid}
+## PMT PID {#mpeg2ts-pmt-pid}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
-The packet identifier carrying the Program Map Table for `m2tsProgramNumber`.
+The packet identifier carrying the Program Map Table for `mpeg2tsProgramNumber`.
 This field is advisory and does not replace the Program Association Table or
 Program Map Table carried in the transport stream. It MUST be absent when
-`m2tsMpts` is true. It MUST be absent when `m2tsEsPid` is present, because
+`mpeg2tsMpts` is true. It MUST be absent when `mpeg2tsEsPid` is present, because
 an ES-level track does not carry a PMT in its payload.
 
-## M2TS PCR PID {#m2ts-pcr-pid}
+## PCR PID {#mpeg2ts-pcr-pid}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The packet identifier carrying the Program Clock Reference for the program
-identified by `m2tsProgramNumber`. This field is advisory and does not
+identified by `mpeg2tsProgramNumber`. This field is advisory and does not
 replace PCR signaling in the transport stream. It MUST be absent when
-`m2tsMpts` is true. When `m2tsEsPid` is present, this PID MAY be carried by
+`mpeg2tsMpts` is true. When `mpeg2tsEsPid` is present, this PID MAY be carried by
 a different track in the same session; a subscriber requiring PCR-based timing
-MUST subscribe to the track where `m2tsPcrPid` equals `m2tsEsPid`.
+MUST subscribe to the track where `mpeg2tsPcrPid` equals `mpeg2tsEsPid`.
 
-## M2TS PSI Interval {#m2ts-psi-interval}
+## PSI Interval {#mpeg2ts-psi-interval}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The maximum interval, in milliseconds, at which the publisher expects the
 Program Association Table and Program Map Table to repeat in the packet stream.
 For single-program tracks, publishers SHOULD repeat PSI at an interval no
-larger than this value for live content. For `m2tsMpts` tracks, the publisher
+larger than this value for live content. For `mpeg2tsMpts` tracks, the publisher
 does not control PSI injection; when present, this field describes the source
 multiplex PSI repetition rate and is advisory only. Subscribers MAY use this
 value to estimate join latency in both modes. This field MUST be absent when
-`m2tsEsPid` is present, because ES-level tracks carry no PSI in their payload.
+`mpeg2tsEsPid` is present, because ES-level tracks carry no PSI in their payload.
 
-## M2TS Mux Rate {#m2ts-mux-rate}
+## Mux Rate {#mpeg2ts-mux-rate}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The nominal source mux rate of the transport stream in bits per second.
 This field is advisory. A subscriber reconstructing a constant-bit-rate
 output stream MAY use this value to restore the original mux rate when null
-packets have been removed. This field MUST be absent when `m2tsEsPid` is
+packets have been removed. This field MUST be absent when `mpeg2tsEsPid` is
 present.
 
-## M2TS SI PIDs {#m2ts-si-pids}
+## SI PIDs {#mpeg2ts-si-pids}
 
 Required: Optional    JSON Type: Array    Location: Track Object
 
@@ -514,11 +514,11 @@ The packet identifiers of SI tables retained in the filtered track, in addition
 to those listed in the Program Map Table. This field is advisory. Publishers
 SHOULD include this field when they retain DVB or ATSC SI tables. Subscribers
 MAY use this list to verify which service information tables are present without
-inspecting the packet stream. This field MUST be absent when `m2tsEsPid` is
+inspecting the packet stream. This field MUST be absent when `mpeg2tsEsPid` is
 present; at ES-level granularity, each SI table is published as a separate
-track identified by `m2tsEsPid` and the MSF `role` field.
+track identified by `mpeg2tsEsPid` and the MSF `role` field.
 
-## M2TS Random Access {#m2ts-random-access}
+## Random Access {#mpeg2ts-random-access}
 
 Required: Optional    JSON Type: Boolean    Location: Track Object
 
@@ -526,7 +526,7 @@ When true, every MOQT Group starts with a random access point, as defined in
 {{group-boundaries}}. When absent or false, this document makes no guarantee
 about where in a Group decoding can begin.
 
-## M2TS Timestamp Mode {#m2ts-timestamp-mode}
+## Timestamp Mode {#mpeg2ts-timestamp-mode}
 
 Required: Optional    JSON Type: String    Location: Track Object
 
@@ -534,9 +534,9 @@ For 192-octet source packets, this field identifies the interpretation of the
 four-octet source-packet timestamp. The value "arrival-time" indicates an
 arrival-time or emission-time stamp associated with the following TS packet. The
 value "opaque" indicates that the timestamp prefix is carried without specified
-semantics. This field MUST NOT be present when `m2tsPacketSize` is 188.
+semantics. This field MUST NOT be present when `mpeg2tsPacketSize` is 188.
 
-## M2TS SCTE-35 PID {#m2ts-scte35-pid}
+## SCTE-35 PID {#mpeg2ts-scte35-pid}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
@@ -545,20 +545,20 @@ field is advisory; SCTE-35 messages are also discoverable via the PMT
 conditional access or registration descriptor. When present, receivers MAY
 use this value to locate splice events without parsing the PMT. Publishers
 SHOULD include this field when the track carries SCTE-35 splice signaling.
-This field MUST be absent when `m2tsEsPid` is present; when SCTE-35 is
-published as an ES-level track, the track's `m2tsEsPid` and `role` fields
+This field MUST be absent when `mpeg2tsEsPid` is present; when SCTE-35 is
+published as an ES-level track, the track's `mpeg2tsEsPid` and `role` fields
 identify it.
 
-## M2TS ES PID {#m2ts-es-pid}
+## ES PID {#mpeg2ts-es-pid}
 
 Required: Optional    JSON Type: Number    Location: Track Object
 
 The Packet Identifier of the single elementary stream or signaling table
 carried by this track. When present, the track carries only TS packets for
 this PID; it does not carry PAT, PMT, or null packets. This field MUST be
-absent when `m2tsMpts` is true. When `m2tsEsPid` is present, `m2tsModified`
-MUST be true, `m2tsPmtPid` MUST be absent, `m2tsSiPids` MUST be absent, and
-`m2tsScte35Pid` MUST be absent.
+absent when `mpeg2tsMpts` is true. When `mpeg2tsEsPid` is present, `mpeg2tsModified`
+MUST be true, `mpeg2tsPmtPid` MUST be absent, `mpeg2tsSiPids` MUST be absent, and
+`mpeg2tsScte35Pid` MUST be absent.
 
 For tracks carrying DVB or ATSC service information tables, publishers SHOULD
 set the MSF `role` field to one of the following values: `"nit"` for the
@@ -570,22 +570,22 @@ information, publishers SHOULD set `role` to `"scte35"`. For media
 elementary streams, publishers SHOULD set `role` to the MSF-defined value for
 the stream type, for example `"video"` or `"audio"`.
 
-## M2TS MPTS {#m2ts-mpts}
+## MPTS {#mpeg2ts-mpts}
 
 Required: Optional    JSON Type: Boolean    Location: Track Object
 
 When true, this track carries a multi-program transport stream without program
-selection or PID filtering. `m2tsProgramNumber`, `m2tsPmtPid`, and
-`m2tsPcrPid` MUST be absent when this field is true.
+selection or PID filtering. `mpeg2tsProgramNumber`, `mpeg2tsPmtPid`, and
+`mpeg2tsPcrPid` MUST be absent when this field is true.
 
 ## Use of MSF Initialization Data {#init-data}
 
 The `initRef` track field and the root `initDataList` field are defined by MSF;
-they are not fields defined by this extension. An m2ts track MAY use those
+they are not fields defined by this extension. An mpeg2ts track MAY use those
 fields to carry initialization data. The track sets `initRef` to the `id` of
 an `initDataList` entry whose `type` MUST be "inline". The Base64 {{BASE64}}
 decoded value of the entry's `data` field MUST be a sequence of whole source
-packets using the packet size declared by `m2tsPacketSize`.
+packets using the packet size declared by `mpeg2tsPacketSize`.
 
 Codec-level initialization data does not need an `initDataList` entry.
 Parameter sets travel in band within the elementary stream and are therefore
@@ -601,7 +601,7 @@ update. Subscribers MUST NOT assume that referenced initialization data remains
 valid after the MPEG-2 PSI `version_number` changes; updated PSI in media
 Objects takes precedence.
 
-For `m2tsMpts` tracks, producing referenced initialization data requires
+For `mpeg2tsMpts` tracks, producing referenced initialization data requires
 extracting the PAT and all program PMTs from the source multiplex. Publishers
 that do not inspect the source stream typically omit `initRef` and the
 corresponding `initDataList` entry; subscribers will encounter PSI within one
@@ -621,20 +621,20 @@ The following examples are non-normative.
     {
       "name": "program-1-ts",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": false,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 6000000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsProgramNumber": 1,
-      "m2tsPmtPid": 256,
-      "m2tsPcrPid": 257,
-      "m2tsPsiInterval": 100,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPmtPid": 256,
+      "mpeg2tsPcrPid": 257,
+      "mpeg2tsPsiInterval": 100,
+      "mpeg2tsRandomAccess": true
     }
   ]
 }
@@ -648,20 +648,20 @@ The following examples are non-normative.
   "generatedAt": 1746104606044,
   "tracks": [
     {
-      "name": "program-1-m2ts",
+      "name": "program-1-mpeg2ts",
       "namespace": "contribution.example.net/feed/a",
-      "packaging": "m2ts",
-      "m2tsModified": false,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": false,
       "isLive": true,
       "targetLatency": 500,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 12000000,
-      "m2tsPacketSize": 192,
-      "m2tsPacketsPerObject": 32,
-      "m2tsProgramNumber": 1,
-      "m2tsTimestampMode": "arrival-time",
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 192,
+      "mpeg2tsPacketsPerObject": 32,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsTimestampMode": "arrival-time",
+      "mpeg2tsRandomAccess": true
     }
   ]
 }
@@ -676,17 +676,17 @@ The following examples are non-normative.
     {
       "name": "asset-main",
       "namespace": "vod.example.com/assets/1000",
-      "packaging": "m2ts",
-      "m2tsModified": false,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": false,
       "isLive": false,
       "trackDuration": 632000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 4500000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 96,
-      "m2tsProgramNumber": 1,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 96,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsRandomAccess": true
     }
   ]
 }
@@ -695,7 +695,7 @@ The following examples are non-normative.
 ## Multi-Program Source - Per-Program Tracks {#example-mpts}
 
 This example shows a catalog for a publisher that receives a 2-program
-transport stream and publishes each program as a separate m2ts track. The
+transport stream and publishes each program as a separate mpeg2ts track. The
 two tracks share a namespace but are independent services; `altGroup` is not
 used because the programs carry different content.
 
@@ -707,38 +707,38 @@ used because the programs carry different content.
     {
       "name": "program-1",
       "namespace": "live.example.com/mux/1",
-      "packaging": "m2ts",
-      "m2tsModified": true,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 6000000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsProgramNumber": 1,
-      "m2tsPmtPid": 256,
-      "m2tsPcrPid": 257,
-      "m2tsPsiInterval": 100,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPmtPid": 256,
+      "mpeg2tsPcrPid": 257,
+      "mpeg2tsPsiInterval": 100,
+      "mpeg2tsRandomAccess": true
     },
     {
       "name": "program-2",
       "namespace": "live.example.com/mux/1",
-      "packaging": "m2ts",
-      "m2tsModified": true,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 4000000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsProgramNumber": 2,
-      "m2tsPmtPid": 512,
-      "m2tsPcrPid": 513,
-      "m2tsPsiInterval": 100,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsProgramNumber": 2,
+      "mpeg2tsPmtPid": 512,
+      "mpeg2tsPcrPid": 513,
+      "mpeg2tsPsiInterval": 100,
+      "mpeg2tsRandomAccess": true
     }
   ]
 }
@@ -748,7 +748,7 @@ used because the programs carry different content.
 
 This example shows a catalog for a publisher that carries a complete
 multi-program transport stream without program selection, so no per-program
-catalog fields are present. The `m2tsPsiInterval` field is included as an
+catalog fields are present. The `mpeg2tsPsiInterval` field is included as an
 advisory hint; its value is not normative for MPTS tracks.
 
 ~~~ json
@@ -759,16 +759,16 @@ advisory hint; its value is not normative for MPTS tracks.
     {
       "name": "mux-1",
       "namespace": "live.example.com/mux/1",
-      "packaging": "m2ts",
-      "m2tsModified": false,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "mimeType": "video/mp2t",
       "bitrate": 20000000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsMpts": true,
-      "m2tsPsiInterval": 100
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsMpts": true,
+      "mpeg2tsPsiInterval": 100
     }
   ]
 }
@@ -790,40 +790,40 @@ PAT and PMT on the new track before routing packets to a decoder.
     {
       "name": "video-high",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": false,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 6000000,
       "altGroup": 1,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsProgramNumber": 1,
-      "m2tsPmtPid": 256,
-      "m2tsPcrPid": 257,
-      "m2tsPsiInterval": 100,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPmtPid": 256,
+      "mpeg2tsPcrPid": 257,
+      "mpeg2tsPsiInterval": 100,
+      "mpeg2tsRandomAccess": true
     },
     {
       "name": "video-low",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": false,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": false,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 2000000,
       "altGroup": 1,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsProgramNumber": 1,
-      "m2tsPmtPid": 512,
-      "m2tsPcrPid": 513,
-      "m2tsPsiInterval": 100,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPmtPid": 512,
+      "mpeg2tsPcrPid": 513,
+      "mpeg2tsPsiInterval": 100,
+      "mpeg2tsRandomAccess": true
     }
   ]
 }
@@ -846,66 +846,66 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
     {
       "name": "program-1-video",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": true,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "video",
       "mimeType": "video/mp2t",
       "bitrate": 5000000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 64,
-      "m2tsProgramNumber": 1,
-      "m2tsPcrPid": 257,
-      "m2tsEsPid": 257,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 64,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPcrPid": 257,
+      "mpeg2tsEsPid": 257,
+      "mpeg2tsRandomAccess": true
     },
     {
       "name": "program-1-audio-en",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": true,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "audio",
       "mimeType": "video/mp2t",
       "bitrate": 128000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 32,
-      "m2tsProgramNumber": 1,
-      "m2tsPcrPid": 257,
-      "m2tsEsPid": 258,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 32,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPcrPid": 257,
+      "mpeg2tsEsPid": 258,
+      "mpeg2tsRandomAccess": true
     },
     {
       "name": "program-1-audio-es",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": true,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": true,
       "isLive": true,
       "targetLatency": 1000,
       "role": "audio",
       "mimeType": "video/mp2t",
       "bitrate": 128000,
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 32,
-      "m2tsProgramNumber": 1,
-      "m2tsPcrPid": 257,
-      "m2tsEsPid": 259,
-      "m2tsRandomAccess": true
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 32,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPcrPid": 257,
+      "mpeg2tsEsPid": 259,
+      "mpeg2tsRandomAccess": true
     },
     {
       "name": "program-1-eit",
       "namespace": "live.example.com/channel/1",
-      "packaging": "m2ts",
-      "m2tsModified": true,
+      "packaging": "mpeg2ts",
+      "mpeg2tsModified": true,
       "isLive": true,
       "role": "eit",
       "mimeType": "video/mp2t",
-      "m2tsPacketSize": 188,
-      "m2tsPacketsPerObject": 16,
-      "m2tsProgramNumber": 1,
-      "m2tsEsPid": 18
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsPacketsPerObject": 16,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsEsPid": 18
     }
   ]
 }
@@ -914,10 +914,10 @@ listing the subscribed PIDs and sourcing PCR from the video track (PID 257).
 # Subscriber Processing {#subscriber-processing}
 
 A subscriber obtains the catalog using the MSF catalog workflow and subscribes
-to one or more m2ts tracks. For each received media Object, the subscriber:
+to one or more mpeg2ts tracks. For each received media Object, the subscriber:
 
 1. Validates that the payload length is a non-zero integer multiple of
-   `m2tsPacketSize`.
+   `mpeg2tsPacketSize`.
 2. Validates the TS sync byte position for each source packet.
 3. Reconstructs the packet stream by appending the source packets in MOQT object
    order.
@@ -930,10 +930,10 @@ processing at the next Object, but it SHOULD wait for a random access point
 before presenting decoded media.
 
 When joining a live track, a subscriber SHOULD start at the newest Group whose
-first Object is available when `m2tsRandomAccess` is true. Otherwise, a
+first Object is available when `mpeg2tsRandomAccess` is true. Otherwise, a
 subscriber SHOULD select a starting Group far enough back to encompass at least
 one complete PSI repetition cycle before its target presentation time; when
-`m2tsPsiInterval` is declared, that value bounds the maximum look-back interval
+`mpeg2tsPsiInterval` is declared, that value bounds the maximum look-back interval
 needed. A subscriber MAY use the MSF Media Timeline {{MSF}} to resolve this
 time bound to a concrete MOQT Group location for use with a Joining FETCH
 {{MOQTransport}}. A subscriber MUST NOT begin media presentation until it has
@@ -944,25 +944,25 @@ align on the same starting Group number across all subscribed ES-level tracks
 for the same program before combining them. The subscriber constructs the combined TS
 output by building a PAT listing the carried program and a PMT listing the PIDs
 of all subscribed ES-level tracks, then interleaving packets from all tracks.
-PCR is sourced from the track where `m2tsPcrPid` equals `m2tsEsPid`. A
+PCR is sourced from the track where `mpeg2tsPcrPid` equals `mpeg2tsEsPid`. A
 subscriber MUST NOT begin media presentation until it has received at least
 one Group from each subscribed ES-level track and has obtained the originating
 program's PAT and PMT, either from `initDataList` or from the packet stream.
 
 # Switching and Alternate Renditions {#switching}
 
-Tracks with `m2tsMpts` set to true MUST NOT be included in an `altGroup`,
+Tracks with `mpeg2tsMpts` set to true MUST NOT be included in an `altGroup`,
 because Adaptive Bitrate (ABR) switching semantics require per-program Group
 alignment and PCR continuity that transparent carriage does not guarantee.
 
-Multiple m2ts tracks can be advertised as alternatives using the MSF `altGroup`
+Multiple mpeg2ts tracks can be advertised as alternatives using the MSF `altGroup`
 field. Video tracks in the same alternate group MUST place Group boundaries at
 identical presentation positions; other tracks SHOULD align their Group
 boundaries to the same positions where possible. All tracks in the alternate
-group SHOULD set `m2tsRandomAccess` to true. This ensures that a subscriber
+group SHOULD set `mpeg2tsRandomAccess` to true. This ensures that a subscriber
 can switch between alternate video tracks at any Group boundary without
 encountering a misaligned access point.
-A subscriber SHOULD switch between alternate m2ts tracks only at Group
+A subscriber SHOULD switch between alternate mpeg2ts tracks only at Group
 boundaries or at transport-stream random access points that it can
 independently decode.
 
@@ -1021,7 +1021,7 @@ SHOULD use an object encryption scheme in addition to transport security.
 # IANA Considerations {#iana-considerations}
 
 This document requests that, once MSF establishes an IANA registry for packaging
-values, IANA register the value "m2ts" with this document as the reference.
+values, IANA register the value "mpeg2ts" with this document as the reference.
 
 --- back
 
