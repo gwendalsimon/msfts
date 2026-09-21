@@ -56,6 +56,22 @@ normative:
 
 informative:
   LOC: I-D.draft-ietf-moq-loc
+  DVBSI:
+    title: "Digital Video Broadcasting (DVB); Specification for Service
+            Information (SI) in DVB systems"
+    author:
+      org: European Telecommunications Standards Institute
+    seriesinfo:
+      ETSI EN: 300 468 V1.19.1
+    date: 2025-02
+  ATSCPSIP:
+    title: "ATSC Standard: Program and System Information Protocol for
+            Terrestrial Broadcast and Cable"
+    author:
+      org: Advanced Television Systems Committee
+    seriesinfo:
+      ATSC: A/65:2013
+    date: 2013
   SecureObjects: I-D.draft-ietf-moq-secure-objects
   C4M: I-D.draft-ietf-moq-c4m
   PrivacyPassAuth: I-D.draft-ietf-moq-privacy-pass-auth
@@ -76,12 +92,12 @@ MPEG-2 Transport Stream MOQT Streaming Format (MSFTS) is an extension of the
 MOQT Streaming Format (MSF) {{MSF}} that delivers MPEG-2 Transport Stream (TS)
 {{ISO138181}} content over MOQT {{MOQTransport}}. MSFTS retains the scope,
 capabilities, and features of MSF, including the catalog format, the timeline,
-and alternate rendition switching. MSFTS keeps the transport stream as the
-media container. A track carries either 188-octet TS packets or 192-octet M2TS
-source packets, and the publisher maps consecutive source packets into MOQT
-Objects. MSFTS is targeted at publishers that already produce packetized
-transport streams, including contribution feeds, broadcast distribution
-workflows, and systems that segment transport streams for HTTP-based delivery.
+and alternate rendition switching. A track described by the MSFTS catalog
+fields carries either 188-octet TS packets or 192-octet M2TS source packets,
+and the publisher maps consecutive source packets into MOQT Objects. MSFTS is
+targeted at publishers that already produce packetized transport streams,
+including contribution feeds, broadcast distribution workflows, and systems
+that segment transport streams for HTTP-based delivery.
 
 This document describes version 2 of the MSFTS packaging format.
 
@@ -143,8 +159,8 @@ Multi-program transport stream (MPTS):
 # Scope
 
 The purpose of MSFTS is to carry an MPEG-2 Transport Stream over
-{{MOQTransport}} without changing the transport stream itself. Interoperability
-implies that:
+{{MOQTransport}} without changing the transport stream itself.
+Interoperability implies that:
 
 * An original publisher can map an incoming transport stream into MOQT Objects
   and Groups, describe it in an MSF catalog, and announce it to an MOQT relay.
@@ -175,17 +191,9 @@ The payload of each MOQT Object is a sequence of whole source packets:
 ~~~
 
 Every source packet on a track has the same size, either 188 or 192 octets, as
-`mpeg2tsPacketSize` ({{mpeg2ts-packet-size}}) declares. A subscriber checks
-two properties of each Object payload:
-
-* The payload MUST contain only whole source packets, so its length is a
-  multiple of `mpeg2tsPacketSize`.
-* Every source packet MUST carry the MPEG-2 TS sync byte 0x47. When
-  `mpeg2tsPacketSize` is 188, the sync byte is the first octet of the packet.
-  When `mpeg2tsPacketSize` is 192, it is the fifth, because a four-octet
-  timestamp precedes the TS packet.
-
-A subscriber MUST reject an Object that fails one of these checks.
+`mpeg2tsPacketSize` ({{mpeg2ts-packet-size}}) declares. An Object payload MUST
+contain only whole source packets, so its length is always a multiple of
+`mpeg2tsPacketSize`. A subscriber MUST reject an Object that breaks this rule.
 
 A subscriber reconstructs the packet stream by concatenating the source
 packets from received Objects in ascending Group ID and Object ID order. A
@@ -213,8 +221,11 @@ reference to prior Groups. A publisher SHOULD place a random access point at
 the first Object of each Group, and the Group then includes the PAT and PMT
 packets required for program demultiplexing.
 
-{{unmodified-carriage}} defines Group boundary placement for tracks carrying a
-whole multiplex.
+For a track carrying a whole multiplex, Group boundary placement depends on
+whether the publisher can identify random access points across the multiplex.
+A publisher that can identify them MAY align Group boundaries to those points
+and set `mpeg2tsRandomAccess` to true. A publisher that cannot SHOULD start a
+new Group after a fixed number of Objects.
 
 When `mpeg2tsRandomAccess` ({{mpeg2ts-random-access}}) is true, the first
 Object in every Group MUST provide a valid random access starting point for
@@ -222,17 +233,11 @@ that Group.
 
 ## Source Handling and Carriage Modes {#carriage-modes}
 
-A publisher carries a transport stream in one of three modes, signaled by the
-required `mpeg2tsModified` field ({{mpeg2ts-modified}}) and the optional
-`mpeg2tsEsPid` field ({{mpeg2ts-es-pid}}). When `mpeg2tsModified` is false,
-the publisher forwards the source packets without modification (unmodified
-carriage). When `mpeg2tsModified` is true and `mpeg2tsEsPid` is absent, the
-publisher has modified the stream at the program level (modified carriage).
-When `mpeg2tsModified` is true and `mpeg2tsEsPid` is present, the track
-carries a single elementary stream (ES-level carriage). The `mpeg2tsMpts`
-field ({{mpeg2ts-mpts}}) indicates whether the track carries a single program
-or a whole multiplex, and it alone controls the presence of the per-program
-fields.
+The required `mpeg2tsModified` field ({{mpeg2ts-modified}}) selects between
+two carriage modes. When `mpeg2tsModified` is false, the publisher forwards
+the source packets without modification ({{unmodified-carriage}}). When
+`mpeg2tsModified` is true, the publisher has changed the source stream
+({{modified-carriage}}).
 
 ### Unmodified Carriage {#unmodified-carriage}
 
@@ -241,76 +246,44 @@ without modification: no program selection, no packet identifier remap, no PAT
 or PMT rewrite, and no insertion or removal of null packets. A subscriber can
 reconstruct the source stream byte-for-byte.
 
-When the source is a single-program transport stream, `mpeg2tsMpts` is false.
-The source Program Association Table already lists exactly one program, so the
-per-program fields `mpeg2tsProgramNumber`, `mpeg2tsPmtPid`, and
-`mpeg2tsPcrPid` SHOULD be present to identify the carried program.
+When the source is a single-program transport stream, `mpeg2tsMpts`
+({{mpeg2ts-mpts}}) is false.
+The catalog does not need to describe the program, because the PAT and PMT
+reach the subscriber unaltered within one PSI repetition cycle.
 
 When the source is a multi-program transport stream, `mpeg2tsMpts` is true and
-all source packets are emitted as received. Because no program is selected,
-the per-program fields `mpeg2tsProgramNumber`, `mpeg2tsPmtPid`, and
-`mpeg2tsPcrPid` MUST be absent, and per-track program subscription and the
-subscriber join behavior defined in this document do not apply. Group boundary
-placement depends on whether the publisher can identify random access points
-across the multiplex: if it can, it MAY align Group boundaries to those points
-and set `mpeg2tsRandomAccess` to true; otherwise it SHOULD start a new Group
-after a fixed number of Objects.
+the publisher emits all source packets as received. Because the publisher
+selects no program, `mpeg2tsProgramNumber` and `mpeg2tsPcrPid` MUST be
+absent.
 
 ### Modified Carriage {#modified-carriage}
 
 When `mpeg2tsModified` is true, the publisher has changed the source stream,
 for example by selecting a program, filtering packets, rewriting the PAT or
 PMT, or adding or removing null packets. A publisher that makes any of these
-changes MUST set `mpeg2tsModified` to true.
+changes MUST set `mpeg2tsModified` to true. The optional `mpeg2tsEsPid` field
+({{mpeg2ts-es-pid}}) distinguishes the two forms of modified carriage: it is
+absent for per-program carriage and present for ES-level carriage.
 
-A publisher deriving a per-program track SHOULD filter the source packets so
-that each track contains only:
+#### Per-Program Carriage {#per-program-carriage}
 
-* Null packets with PID 0x1FFF, which MAY be removed or
-  retained at the publisher's discretion.
-* Program Association Table packets (PID 0x0000), rewritten to list only the
-  program present in this track.
-* Program Map Table packets for the selected program (whose PID is listed in
-  the Program Association Table entry for that program).
-* All packets whose PID is listed in the Program Map Table of the selected
-  program, including the PCR_PID and the PIDs of all elementary streams.
+A publisher deriving a per-program track SHOULD drop every source packet
+except:
 
-Removing null packets changes the inter-packet byte spacing that
-constant-bit-rate receivers use to recover the mux clock. A subscriber wishing
-to reconstruct a constant-bit-rate output stream cannot derive the original
-rate from the stream alone; publishers that remove null packets SHOULD declare
-the source mux rate using `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}).
+* PAT packets (PID 0x0000), rewritten to list only the program present in
+  this track.
+* PMT packets for the selected program, on the PID that the rewritten PAT
+  lists.
+* Packets on any PID that the selected program's PMT lists, including the PCR
+  PID and the PIDs of all elementary streams.
+* Packets carrying the SI tables that the publisher retains, if any.
+* Conditional access packets, including the Conditional Access Table on PID
+  0x0001, which no PMT lists.
+* Null packets (PID 0x1FFF), which the publisher MAY drop or retain.
 
-These rules apply to unscrambled transport stream sources. Publishers
-filtering scrambled transport streams MUST also retain the conditional access
-packets required for descrambling; conditional access integration is
+A publisher filtering a scrambled transport stream MUST retain the conditional
+access packets required for descrambling. Conditional access integration is
 application-specific and outside the scope of this document.
-
-Filtering to a single program drops the service information (SI) tables,
-because the PMT references only the elementary stream PIDs and the PCR PID of
-the selected program. Digital Video Broadcasting (DVB) carries those tables on
-fixed PIDs that no PMT lists:
-
-| Table                                                | PID    |
-|:=====================================================|:=======|
-| Network Information Table (NIT)                      | 0x0010 |
-| Service Description Table and Bouquet Association Table (SDT/BAT) | 0x0011 |
-| Event Information Table (EIT)                        | 0x0012 |
-| Time and Date Table and Time Offset Table (TDT/TOT)  | 0x0014 |
-{: #si-tables title="DVB service information tables"}
-
-The Advanced Television Systems Committee (ATSC) carries equivalent
-information in its Program and System Information Protocol (PSIP) tables. A
-track filtered without these tables has no service identity, no Electronic
-Program Guide (EPG), and no broadcast time. A publisher producing tracks for
-broadcast or IRD reception SHOULD retain the SI tables that the target
-standard requires, and SHOULD declare their PIDs using `mpeg2tsSiPids`
-({{mpeg2ts-si-pids}}) so that subscribers can verify which tables are present.
-
-SDT and EIT carried from an MPTS describe every program in the multiplex, so a
-publisher retaining them SHOULD filter or rewrite them to leave only the
-service and schedule entries for the carried program. NIT, TDT, and TOT are
-broadcast-wide and need no per-program rewriting.
 
 The `mpeg2tsProgramNumber` field ({{mpeg2ts-program-number}}) SHOULD be
 present on per-program tracks to identify the program carried. When multiple
@@ -319,7 +292,32 @@ use the MSF `altGroup` field if the programs are alternate renditions of the
 same content; programs that are independent services SHOULD be published as
 separate tracks.
 
-### Modified ES-Level Carriage {#es-level-carriage}
+Removing null packets changes the inter-packet byte spacing that
+constant-bit-rate receivers use to recover the mux clock. A subscriber wishing
+to reconstruct a constant-bit-rate output stream cannot derive the original
+rate from the stream alone; publishers that remove null packets SHOULD declare
+the source mux rate using `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}).
+
+A publisher that retains service information (SI) tables SHOULD declare their
+PIDs using `mpeg2tsSiPids` ({{mpeg2ts-si-pids}}), so that a subscriber can
+tell which tables are present without inspecting the packet stream. The
+declaration is needed because no PMT lists the SI PIDs, so the packet filter
+defined at the start of this section drops these tables unless the publisher
+retains them deliberately. A track without them has no service identity, no
+event schedule, and no broadcast time, which a publisher targeting broadcast
+or IRD reception SHOULD preserve.
+
+Digital Video Broadcasting (DVB) and the Advanced Television Systems Committee
+(ATSC) define different SI tables and place them on different PIDs. {{DVBSI}}
+specifies the DVB tables and {{ATSCPSIP}} specifies the ATSC Program and
+System Information Protocol. A publisher SHOULD retain the tables that the
+target standard requires.
+
+SI tables that describe individual services carry entries for every program in
+a multiplex, so a publisher deriving a per-program track SHOULD rewrite them
+to leave only the entries for the carried program.
+
+#### ES-Level Carriage {#es-level-carriage}
 
 When `mpeg2tsEsPid` ({{mpeg2ts-es-pid}}) is present, the track carries a
 single elementary stream or signaling table. The track payload contains only
@@ -391,15 +389,14 @@ MUST ignore fields it does not understand.
 
 ## Track Object Fields {#track-fields}
 
-{{track-fields-table}} lists the mpeg2ts-specific fields defined within a track
-object.
+{{track-fields-table}} lists the mpeg2ts-specific fields defined within a
+track object.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
 | Packet size                   | mpeg2tsPacketSize         | {{mpeg2ts-packet-size}} |
 | Stream modified               | mpeg2tsModified           | {{mpeg2ts-modified}} |
 | Program number                | mpeg2tsProgramNumber      | {{mpeg2ts-program-number}} |
-| PMT PID                       | mpeg2tsPmtPid             | {{mpeg2ts-pmt-pid}} |
 | PCR PID                       | mpeg2tsPcrPid             | {{mpeg2ts-pcr-pid}} |
 | PSI interval                  | mpeg2tsPsiInterval        | {{mpeg2ts-psi-interval}} |
 | Mux rate                      | mpeg2tsMuxRate            | {{mpeg2ts-mux-rate}} |
@@ -442,17 +439,6 @@ present, the track SHOULD carry packets from only that program. When absent
 and `mpeg2tsMpts` is not true, subscribers MAY select a program using local
 policy or transport-stream signaling. This field MUST be absent when
 `mpeg2tsMpts` is true.
-
-## PMT PID {#mpeg2ts-pmt-pid}
-
-Required: Optional JSON Type: Number Location: Track Object
-
-The packet identifier carrying the Program Map Table for
-`mpeg2tsProgramNumber`. This field is advisory and does not replace the
-Program Association Table or Program Map Table carried in the transport
-stream. It MUST be absent when `mpeg2tsMpts` is true. It MUST be absent when
-`mpeg2tsEsPid` is present, because an ES-level track does not carry a PMT in
-its payload.
 
 ## PCR PID {#mpeg2ts-pcr-pid}
 
@@ -540,8 +526,8 @@ The Packet Identifier of the single elementary stream or signaling table
 carried by this track. When present, the track carries only TS packets for
 this PID; it does not carry PAT, PMT, or null packets. This field MUST be
 absent when `mpeg2tsMpts` is true. When `mpeg2tsEsPid` is present,
-`mpeg2tsModified` MUST be true, `mpeg2tsPmtPid` MUST be absent,
-`mpeg2tsSiPids` MUST be absent, and `mpeg2tsScte35Pid` MUST be absent.
+`mpeg2tsModified` MUST be true, and `mpeg2tsSiPids` and `mpeg2tsScte35Pid`
+MUST be absent.
 
 For tracks carrying DVB or ATSC service information tables, publishers SHOULD
 set the MSF `role` field to one of the following values: `"nit"` for the
@@ -558,8 +544,8 @@ type, for example `"video"` or `"audio"`.
 Required: Optional JSON Type: Boolean Location: Track Object
 
 When true, this track carries a multi-program transport stream without program
-selection or PID filtering. `mpeg2tsProgramNumber`, `mpeg2tsPmtPid`, and
-`mpeg2tsPcrPid` MUST be absent when this field is true.
+selection or PID filtering. `mpeg2tsProgramNumber` and `mpeg2tsPcrPid` MUST be
+absent when this field is true.
 
 ## Use of MSF Initialization Data {#init-data}
 
@@ -613,7 +599,6 @@ The following examples are non-normative.
       "bitrate": 6000000,
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
-      "mpeg2tsPmtPid": 256,
       "mpeg2tsPcrPid": 257,
       "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
@@ -696,7 +681,6 @@ used because the programs carry different content.
       "bitrate": 6000000,
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
-      "mpeg2tsPmtPid": 256,
       "mpeg2tsPcrPid": 257,
       "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
@@ -713,7 +697,6 @@ used because the programs carry different content.
       "bitrate": 4000000,
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 2,
-      "mpeg2tsPmtPid": 512,
       "mpeg2tsPcrPid": 513,
       "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
@@ -777,7 +760,6 @@ re-parse PAT and PMT on the new track before routing packets to a decoder.
       "altGroup": 1,
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
-      "mpeg2tsPmtPid": 256,
       "mpeg2tsPcrPid": 257,
       "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
@@ -795,7 +777,6 @@ re-parse PAT and PMT on the new track before routing packets to a decoder.
       "altGroup": 1,
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
-      "mpeg2tsPmtPid": 512,
       "mpeg2tsPcrPid": 513,
       "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
