@@ -56,6 +56,7 @@ normative:
 
 informative:
   LOC: I-D.draft-ietf-moq-loc
+  SCTE35Timeline: I-D.draft-wilaw-moq-scte35-event-timeline
   DVBSI:
     title: "Digital Video Broadcasting (DVB); Specification for Service
             Information (SI) in DVB systems"
@@ -328,21 +329,17 @@ identify the program structure before processing elementary-stream packets.
 `mpeg2tsPsiInterval` MUST be absent, because the track payload contains no
 PSI.
 
-When `mpeg2tsPcrPid` equals `mpeg2tsEsPid`, the track embeds the Program Clock
-Reference and provides the timing reference for the program. When
-`mpeg2tsPcrPid` identifies a different PID, that PID is carried by another
-track; a subscriber requiring PCR-based timing MUST subscribe to the track
-carrying that PID.
+When `mpeg2tsPcrPid` equals `mpeg2tsEsPid`, the track carries the PCR and
+provides the timing reference for the program. When `mpeg2tsPcrPid` identifies
+a different PID, another track carries the PCR, and a subscriber that needs
+PCR timing MUST subscribe to that track. {{pcr-timing}} applies to the track
+that carries the PCR.
 
-A publisher producing multiple ES-level tracks for the same program MUST align
-Group boundaries across all those tracks so that matching Group numbers
-correspond to the same presentation position. This alignment allows a
-subscriber to combine ES-level tracks reliably. A subscriber combining
-multiple ES-level tracks into a single TS output MUST construct a PAT listing
-the carried program and a PMT listing the PIDs of all subscribed ES-level
-tracks, and MUST interleave packets from all tracks. The subscriber sources
-PCR from the track where `mpeg2tsPcrPid` equals `mpeg2tsEsPid`.
-
+A publisher producing multiple ES-level tracks for the same program SHOULD
+align Group boundaries across those tracks so that matching Group numbers
+correspond to the same presentation position. Elementary streams have
+different frame durations, so exact alignment is not always possible.
+{{subscriber-processing}} defines how a subscriber combines ES-level tracks.
 
 ## PCR and Timing {#pcr-timing}
 
@@ -352,30 +349,30 @@ boundaries and do not alter PCR continuity within a track.
 
 A publisher MUST NOT introduce a PCR discontinuity within a single MOQT Group.
 A publisher that introduces a PCR discontinuity between consecutive MOQT
-Groups MUST signal it by setting the discontinuity_indicator bit (ISO 13818-1
-Section 2.4.3.5) in the adaptation field of the first TS packet carrying PCR
-in the new Group.
+Groups MUST signal it by setting the discontinuity_indicator bit
+({{ISO138181}}, Section 2.4.3.5) in the adaptation field of the first TS
+packet carrying PCR in the new Group. The PCR base field wraps around during
+long-running streams, and a wrap is not a discontinuity: a publisher MUST NOT
+signal one when the PCR base wraps.
 
-Note: Hardware IRDs recover the mux clock from the rate at which PCR-bearing
-packets arrive, not only from their encoded values. MOQT does not guarantee
-that Object delivery preserves the inter-packet timing of the source stream.
-Deployments targeting such receivers should account for this constraint and
-may require a rate-controlled egress that re-paces packets according to the
-source mux rate.
-
-Note: The 33-bit PCR base field wraps around after approximately 26.5 hours of
-continuous stream time. For long-running live streams this is a normal event;
-receivers should handle it as a continuous timeline continuation rather than a
-discontinuity. Subscribers that use the MSF Media Timeline {{MSF}} for playout
-timing can rely on its monotonic wall-clock abstraction independently of PCR
-wrap-around.
+A subscriber cannot recover the source mux clock from the rate at which
+packets arrive. MOQT delivers whole Objects, and a relay can serve them from
+its cache as fast as the link allows, so arrival timing carries no information
+about the source. A deployment that feeds equipment relying on arrival rate
+needs a gateway that sends the reconstructed packet stream at the rate
+`mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) declares.
 
 ## Splice Signaling {#splice-signaling}
 
-SCTE-35 {{SCTE35}} splice information is carried transparently in the TS
-stream as splice_info_section() messages on their designated PID. Publishers
-MAY surface splice events via the MSF Event Timeline {{MSF}}. This document
-does not specify SCTE-35 processing.
+An mpeg2ts track carries SCTE-35 {{SCTE35}} splice information in band, as
+splice_info_section() messages on the PID that `mpeg2tsScte35Pid`
+({{mpeg2ts-scte35-pid}}) declares. This document does not specify SCTE-35
+processing.
+
+A publisher MAY also publish the same splice events out of band, on an MSF
+Event Timeline track. {{SCTE35Timeline}} defines the event type identifiers
+and the payload format for that track. A subscriber can then read splice
+events without parsing the packet stream.
 
 # Catalog {#catalog}
 
