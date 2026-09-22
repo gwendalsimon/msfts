@@ -860,34 +860,22 @@ PMT listing the subscribed PIDs and sourcing PCR from the video track (PID
 
 # Switching and Alternate Renditions {#switching}
 
-Tracks with `mpeg2tsMpts` set to true MUST NOT be included in an `altGroup`,
-because Adaptive Bitrate (ABR) switching semantics require per-program Group
-alignment and PCR continuity that transparent carriage does not guarantee.
-
-Multiple mpeg2ts tracks can be advertised as alternatives using the MSF
+A publisher advertises multiple mpeg2ts tracks as alternatives using the MSF
 `altGroup` field. Video tracks in the same alternate group MUST place Group
-boundaries at identical presentation positions; other tracks SHOULD align
-their Group boundaries to the same positions where possible. All tracks in the
-alternate group SHOULD set `mpeg2tsRandomAccess` to true. This ensures that a
-subscriber can switch between alternate video tracks at any Group boundary
-without encountering a misaligned access point. A subscriber SHOULD switch
-between alternate mpeg2ts tracks only at Group boundaries or at
-transport-stream random access points that it can independently decode.
+boundaries at identical presentation positions, and other tracks SHOULD align
+their Group boundaries to the same positions where possible. A track with
+`mpeg2tsMpts` set to true MUST NOT appear in an `altGroup`.
 
-This document does not require continuity counter values or PID assignments to
-match across alternate tracks. Subscribers MUST treat a switch between tracks
-as a packet-stream discontinuity unless application-specific signaling
-establishes stronger continuity.
+A subscriber switches between alternate mpeg2ts tracks either at a Group
+boundary or at a transport-stream random access point that it can
+independently decode. This document does not require continuity counter values
+or PID assignments to match across alternate tracks, so a subscriber MUST
+treat a switch as a packet-stream discontinuity.
 
-A receiver MUST treat a switch between alternate tracks as a PCR discontinuity
-and MUST re-initialize its system time clock (STC) recovery using the first
-PCR value received on the new track as the initial reference. In addition to
-the Group boundary alignment requirements above, publishers providing
-alternate tracks SHOULD align presentation timestamps at Group boundaries
-across tracks to enable seamless presentation switching at the application
-layer. Because PID assignments need not match across alternate tracks, a
-receiver MUST re-parse the PAT and PMT of the new track after every track
-switch before routing elementary-stream packets to a decoder.
+After a switch, a receiver MUST re-initialize its system time clock (STC)
+recovery from the first PCR of the new track. It MUST also re-parse the PAT
+and PMT of the new track before routing elementary-stream packets to a
+decoder.
 
 # Content Protection {#content-protection}
 
