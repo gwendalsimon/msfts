@@ -419,15 +419,24 @@ signal one when the PCR base wraps.
 A subscriber cannot recover the source mux clock from the rate at which
 packets arrive. MOQT delivers whole Objects, and a relay can serve them from
 its cache as fast as the link allows, so arrival timing carries no information
-about the source. A deployment that feeds equipment relying on arrival rate
-needs a gateway that paces the reconstructed packet stream. `mpeg2tsMuxRate`
-({{mpeg2ts-mux-rate}}) gives that gateway a target rate. A target rate does
-not reproduce the source schedule, because the source byte clock runs
-independently of the gateway clock. Reproducing the schedule requires
-per-packet timing that this document does not define. Conformance to the
-delivery schedule is therefore a property of the point where a
-transport-stream output is produced, and not of the carriage between publisher
-and subscriber.
+about the source. Conformance to the delivery schedule is therefore a property
+of how a subscriber delivers its reconstructed packet stream to a receiver,
+and not of the carriage between publisher and subscriber.
+
+## Egress Timing {#egress-timing}
+
+Whether a reconstructed packet stream meets the delivery schedule its PCR
+values describe depends on the times at which the subscriber delivers its
+source packets to the receiver.
+
+A subscriber whose receiver recovers its clock from packet arrival MUST
+deliver the source packets on a schedule consistent with the PCR values they
+carry. That subscriber SHOULD meet the PCR repetition and accuracy limits of
+the standard governing the receiver, given by {{TR101290}} for a DVB
+deployment. Where the receiver expects a constant bit rate, the subscriber
+SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target. A
+stuffing target does not reproduce the source schedule. Reproducing it
+requires timing information that this document does not define.
 
 ## Splice Signaling {#splice-signaling}
 
@@ -570,10 +579,9 @@ published as several ES-level tracks, every track of that program SHOULD
 declare the same value, which describes the reconstructed program and not any
 single track.
 
-The declared rate is a stuffing target rather than a timing source. An
-implementation producing a transport-stream output recovers its clock from the
-PCR values in the stream, and uses this rate to decide how much null stuffing
-to insert.
+The declared rate is a stuffing target rather than a timing source. A
+subscriber recovers its clock from the PCR values in the stream, and uses this
+rate to decide how much null stuffing to insert.
 
 This field MUST be absent when `mpeg2tsMpts` is true.
 
