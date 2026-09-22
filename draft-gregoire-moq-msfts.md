@@ -265,6 +265,19 @@ the source packets without modification ({{unmodified-carriage}}). When
 `mpeg2tsModified` is true, the publisher has changed the source stream
 ({{modified-carriage}}).
 
+Three fields together determine how a track carries its source:
+
+| `mpeg2tsModified` | `mpeg2tsEsPid` | `mpeg2tsMpts` | Carriage |
+|:==================|:===============|:==============|:=========|
+| false | absent | false | Unmodified, single program |
+| false | absent | true | Unmodified, whole multiplex |
+| true | absent | false | Per-program |
+| true | present | false | ES-level |
+{: #carriage-table title="Fields that determine the carriage of a track"}
+
+A subscriber MUST treat a track whose fields match no row of
+{{carriage-table}} as invalid.
+
 ### Unmodified Carriage {#unmodified-carriage}
 
 When `mpeg2tsModified` is false, the publisher forwards the source packets
@@ -505,9 +518,10 @@ type, for example `"video"` or `"audio"`.
 Required: Optional JSON Type: Boolean Location: Track Object
 
 When true, this track carries a whole multi-program transport stream, with no
-program selected and no PID filtered. `mpeg2tsModified` MUST be false when
-this field is true, because a whole multiplex reaches the subscriber exactly
-as the publisher received it. {{unmodified-carriage}} defines the carriage.
+program selected and no PID filtered. This field is false when absent.
+`mpeg2tsModified` MUST be false when this field is true, because a whole
+multiplex reaches the subscriber exactly as the publisher received it.
+{{unmodified-carriage}} defines the carriage.
 
 The following fields MUST be absent when this field is true:
 `mpeg2tsProgramNumber`, `mpeg2tsPcrPid`, `mpeg2tsEsPid`, `mpeg2tsSiPids`,
