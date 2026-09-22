@@ -326,8 +326,6 @@ TS packets for the PID identified by `mpeg2tsEsPid`; PAT, PMT, and null
 packets are not included. Publishers SHOULD use the MSF `initDataList` field
 to carry the PAT and PMT of the originating program so that subscribers can
 identify the program structure before processing elementary-stream packets.
-`mpeg2tsPsiInterval` MUST be absent, because the track payload contains no
-PSI.
 
 When `mpeg2tsPcrPid` equals `mpeg2tsEsPid`, the track carries the PCR and
 provides the timing reference for the program. When `mpeg2tsPcrPid` identifies
@@ -393,16 +391,15 @@ track object.
 |:==============================|:========================|:===========|
 | Packet size                   | mpeg2tsPacketSize         | {{mpeg2ts-packet-size}} |
 | Stream modified               | mpeg2tsModified           | {{mpeg2ts-modified}} |
+| ES PID                        | mpeg2tsEsPid              | {{mpeg2ts-es-pid}} |
+| MPTS                          | mpeg2tsMpts               | {{mpeg2ts-mpts}} |
 | Program number                | mpeg2tsProgramNumber      | {{mpeg2ts-program-number}} |
 | PCR PID                       | mpeg2tsPcrPid             | {{mpeg2ts-pcr-pid}} |
-| PSI interval                  | mpeg2tsPsiInterval        | {{mpeg2ts-psi-interval}} |
 | Mux rate                      | mpeg2tsMuxRate            | {{mpeg2ts-mux-rate}} |
 | SI PIDs                       | mpeg2tsSiPids             | {{mpeg2ts-si-pids}} |
 | Random access                 | mpeg2tsRandomAccess       | {{mpeg2ts-random-access}} |
 | Timestamp mode                | mpeg2tsTimestampMode      | {{mpeg2ts-timestamp-mode}} |
 | SCTE-35 PID                   | mpeg2tsScte35Pid          | {{mpeg2ts-scte35-pid}} |
-| ES PID                        | mpeg2tsEsPid              | {{mpeg2ts-es-pid}} |
-| MPTS                          | mpeg2tsMpts               | {{mpeg2ts-mpts}} |
 {: #track-fields-table title="Track object fields defined by this document"}
 
 Use of the MSF `initRef` and `initDataList` fields by mpeg2ts tracks is
@@ -421,47 +418,74 @@ packet.
 
 Required: Yes JSON Type: Boolean Location: Track Object
 
-When true, the published packet stream is not a byte-for-byte copy of the
-source. The publisher has changed it, for example by selecting a program,
-filtering packets, rewriting the PAT or PMT, or adding or removing null
-packets. When false, the publisher MUST forward the source packets without
-modification, so a subscriber can reconstruct the source stream byte-for-byte.
+Whether the publisher has changed the source packet stream. When false, the
+published stream is a byte-for-byte copy of the source. {{carriage-modes}}
+defines what a publisher may change when this field is true.
+
+## ES PID {#mpeg2ts-es-pid}
+
+Required: Optional JSON Type: Number Location: Track Object
+
+The PID of the single elementary stream or signaling table carried by this
+track. When present, the track carries only TS packets for that PID, and
+carries neither PAT, PMT, nor null packets. This field selects ES-level
+carriage, which {{es-level-carriage}} defines.
+
+This field MUST be absent when `mpeg2tsMpts` is true. When it is present,
+`mpeg2tsModified` MUST be true, and `mpeg2tsSiPids` and `mpeg2tsScte35Pid`
+MUST be absent.
+
+The MSF `role` field is a useful companion to `mpeg2tsEsPid`, because a PID
+alone does not say what the track carries. For tracks carrying DVB or ATSC SI
+tables, publishers SHOULD set `role` to one of the following values: `"nit"`
+for the
+Network Information Table (PID 0x0010), `"sdt"` for the Service Description
+Table and Bouquet Association Table (PID 0x0011), `"eit"` for the Event
+Information Table (PID 0x0012), and `"tdt"` for the Time and Date Table and
+Time Offset Table (PID 0x0014). For tracks carrying SCTE-35 splice
+information, publishers SHOULD set `role` to `"scte35"`. For media elementary
+streams, publishers SHOULD set `role` to the MSF-defined value for the stream
+type, for example `"video"` or `"audio"`.
+
+## MPTS {#mpeg2ts-mpts}
+
+Required: Optional JSON Type: Boolean Location: Track Object
+
+When true, this track carries a whole multi-program transport stream, with no
+program selected and no PID filtered. `mpeg2tsModified` MUST be false when
+this field is true, because a whole multiplex reaches the subscriber exactly
+as the publisher received it. {{unmodified-carriage}} defines the carriage.
+
+The following fields MUST be absent when this field is true:
+`mpeg2tsProgramNumber`, `mpeg2tsPcrPid`, `mpeg2tsEsPid`, `mpeg2tsSiPids`,
+`mpeg2tsScte35Pid`, and `mpeg2tsMuxRate`.
+
+The catalog does not describe the program structure of an MPTS track. A
+subscriber reads it from the PAT and the PMTs in the packet stream, which the
+publisher forwards untouched.
 
 ## Program Number {#mpeg2ts-program-number}
 
 Required: Optional JSON Type: Number Location: Track Object
 
 The MPEG-2 Transport Stream program number carried by this track. When
-present, the track SHOULD carry packets from only that program. When absent
-and `mpeg2tsMpts` is not true, subscribers MAY select a program using local
-policy or transport-stream signaling. This field MUST be absent when
-`mpeg2tsMpts` is true.
+present, the track SHOULD carry packets from only that program. This field
+identifies the selected program in per-program carriage
+({{per-program-carriage}}) and the originating program in ES-level carriage
+({{es-level-carriage}}). It MUST be absent when `mpeg2tsMpts` is true.
 
 ## PCR PID {#mpeg2ts-pcr-pid}
 
 Required: Optional JSON Type: Number Location: Track Object
 
-The packet identifier carrying the Program Clock Reference for the program
-identified by `mpeg2tsProgramNumber`. This field is advisory and does not
-replace PCR signaling in the transport stream. It MUST be absent when
-`mpeg2tsMpts` is true. When `mpeg2tsEsPid` is present, this PID MAY be carried
-by a different track in the same session; a subscriber requiring PCR-based
-timing MUST subscribe to the track where `mpeg2tsPcrPid` equals
-`mpeg2tsEsPid`.
+The PID carrying the PCR of the program that this track carries. This field is
+advisory and does not replace the PCR signaling in the transport stream. It
+MUST be absent when `mpeg2tsMpts` is true.
 
-## PSI Interval {#mpeg2ts-psi-interval}
-
-Required: Optional JSON Type: Number Location: Track Object
-
-The maximum interval, in milliseconds, at which the publisher expects the
-Program Association Table and Program Map Table to repeat in the packet
-stream. For single-program tracks, publishers SHOULD repeat PSI at an interval
-no larger than this value for live content. For `mpeg2tsMpts` tracks, the
-publisher does not control PSI injection; when present, this field describes
-the source multiplex PSI repetition rate and is advisory only. Subscribers MAY
-use this value to estimate join latency in both modes. This field MUST be
-absent when `mpeg2tsEsPid` is present, because ES-level tracks carry no PSI in
-their payload.
+In ES-level carriage, the PCR may travel on a different track. A subscriber
+that needs PCR timing for an ES-level track MUST also subscribe to the track
+whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` declared by that ES-level
+track.
 
 ## Mux Rate {#mpeg2ts-mux-rate}
 
@@ -470,19 +494,25 @@ Required: Optional JSON Type: Number Location: Track Object
 The nominal source mux rate of the transport stream in bits per second. This
 field is advisory. A subscriber reconstructing a constant-bit-rate output
 stream MAY use this value to restore the original mux rate when null packets
-have been removed. This field MUST be absent when `mpeg2tsEsPid` is present.
+have been removed. This field MUST be absent when `mpeg2tsEsPid` is present or
+`mpeg2tsMpts` is true.
 
 ## SI PIDs {#mpeg2ts-si-pids}
 
 Required: Optional JSON Type: Array Location: Track Object
 
-The packet identifiers of SI tables retained in the filtered track, in
-addition to those listed in the Program Map Table. This field is advisory.
-Publishers SHOULD include this field when they retain DVB or ATSC SI tables.
-Subscribers MAY use this list to verify which service information tables are
-present without inspecting the packet stream. This field MUST be absent when
-`mpeg2tsEsPid` is present; at ES-level granularity, each SI table is published
-as a separate track identified by `mpeg2tsEsPid` and the MSF `role` field.
+An array of the PIDs carrying the SI tables that a per-program track retains.
+DVB and ATSC place each table on its own PID, so a publisher retaining several
+tables lists one PID per table. The array does not repeat the PIDs that the
+PMT lists.
+
+A publisher SHOULD include this field when it retains SI tables
+({{per-program-carriage}}). The field is advisory: a subscriber MAY use it to
+learn which tables are present without parsing the packet stream.
+
+This field MUST be absent when `mpeg2tsEsPid` is present or `mpeg2tsMpts` is
+true. An ES-level track carries one table, which its `mpeg2tsEsPid` and MSF
+`role` field identify ({{mpeg2ts-es-pid}}).
 
 ## Random Access {#mpeg2ts-random-access}
 
@@ -512,66 +542,30 @@ field is advisory; SCTE-35 messages are also discoverable via the PMT
 conditional access or registration descriptor. When present, receivers MAY use
 this value to locate splice events without parsing the PMT. Publishers SHOULD
 include this field when the track carries SCTE-35 splice signaling. This field
-MUST be absent when `mpeg2tsEsPid` is present; when SCTE-35 is published as an
-ES-level track, the track's `mpeg2tsEsPid` and `role` fields identify it.
-
-## ES PID {#mpeg2ts-es-pid}
-
-Required: Optional JSON Type: Number Location: Track Object
-
-The Packet Identifier of the single elementary stream or signaling table
-carried by this track. When present, the track carries only TS packets for
-this PID; it does not carry PAT, PMT, or null packets. This field MUST be
-absent when `mpeg2tsMpts` is true. When `mpeg2tsEsPid` is present,
-`mpeg2tsModified` MUST be true, and `mpeg2tsSiPids` and `mpeg2tsScte35Pid`
-MUST be absent.
-
-For tracks carrying DVB or ATSC service information tables, publishers SHOULD
-set the MSF `role` field to one of the following values: `"nit"` for the
-Network Information Table (PID 0x0010), `"sdt"` for the Service Description
-Table and Bouquet Association Table (PID 0x0011), `"eit"` for the Event
-Information Table (PID 0x0012), and `"tdt"` for the Time and Date Table and
-Time Offset Table (PID 0x0014). For tracks carrying SCTE-35 splice
-information, publishers SHOULD set `role` to `"scte35"`. For media elementary
-streams, publishers SHOULD set `role` to the MSF-defined value for the stream
-type, for example `"video"` or `"audio"`.
-
-## MPTS {#mpeg2ts-mpts}
-
-Required: Optional JSON Type: Boolean Location: Track Object
-
-When true, this track carries a multi-program transport stream without program
-selection or PID filtering. `mpeg2tsProgramNumber` and `mpeg2tsPcrPid` MUST be
-absent when this field is true.
+MUST be absent when `mpeg2tsEsPid` is present or `mpeg2tsMpts` is true; when
+SCTE-35 is published as an ES-level track, the track's `mpeg2tsEsPid` and
+`role` fields identify it.
 
 ## Use of MSF Initialization Data {#init-data}
 
 The `initRef` track field and the root `initDataList` field are defined by
-MSF; they are not fields defined by this extension. An mpeg2ts track MAY use
-those fields to carry initialization data. The track sets `initRef` to the
+MSF. An mpeg2ts track MAY use those fields to carry initialization data. The track sets `initRef` to the
 `id` of an `initDataList` entry whose `type` MUST be "inline". The Base64
 {{BASE64}} decoded value of the entry's `data` field MUST be a sequence of
 whole source packets using the packet size declared by `mpeg2tsPacketSize`.
-
-Codec-level initialization data does not need an `initDataList` entry.
-Parameter sets travel in band within the elementary stream and are therefore
-present whenever a random access point is included.
 
 Publishers SHOULD include current PAT and PMT packets in the referenced
 initialization data when those tables are not guaranteed to be available at
 the first Object of each Group. When PSI changes within a live track, the
 publisher SHOULD publish an updated initialization data entry in a new
-independent catalog before publishing Objects that rely on the changed PSI. An
-update to the root `initDataList` MUST NOT be expressed as an MSF delta
-update. Subscribers MUST NOT assume that referenced initialization data
+independent catalog before publishing Objects that rely on the changed PSI.
+Subscribers MUST NOT assume that referenced initialization data
 remains valid after the MPEG-2 PSI `version_number` changes; updated PSI in
 media Objects takes precedence.
 
-For `mpeg2tsMpts` tracks, producing referenced initialization data requires
-extracting the PAT and all program PMTs from the source multiplex. Publishers
-that do not inspect the source stream typically omit `initRef` and the
-corresponding `initDataList` entry; subscribers will encounter PSI within one
-PSI repetition cycle regardless of Group boundaries.
+A publisher using unmodified carriage ({{unmodified-carriage}}) typically
+omits `initRef`, because it does not inspect the source stream and the PSI
+reaches the subscriber unchanged.
 
 # Catalog Examples {#catalog-examples}
 
@@ -597,7 +591,6 @@ The following examples are non-normative.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
-      "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
     }
   ]
@@ -679,7 +672,6 @@ used because the programs carry different content.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
-      "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
     },
     {
@@ -695,7 +687,6 @@ used because the programs carry different content.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 2,
       "mpeg2tsPcrPid": 513,
-      "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
     }
   ]
@@ -706,8 +697,7 @@ used because the programs carry different content.
 
 This example shows a catalog for a publisher that carries a complete
 multi-program transport stream without program selection, so no per-program
-catalog fields are present. The `mpeg2tsPsiInterval` field is included as an
-advisory hint; its value is not normative for MPTS tracks.
+catalog fields are present.
 
 ~~~ json
 {
@@ -724,8 +714,7 @@ advisory hint; its value is not normative for MPTS tracks.
       "mimeType": "video/mp2t",
       "bitrate": 20000000,
       "mpeg2tsPacketSize": 188,
-      "mpeg2tsMpts": true,
-      "mpeg2tsPsiInterval": 100
+      "mpeg2tsMpts": true
     }
   ]
 }
@@ -758,7 +747,6 @@ re-parse PAT and PMT on the new track before routing packets to a decoder.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
-      "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
     },
     {
@@ -775,7 +763,6 @@ re-parse PAT and PMT on the new track before routing packets to a decoder.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 513,
-      "mpeg2tsPsiInterval": 100,
       "mpeg2tsRandomAccess": true
     }
   ]
@@ -882,9 +869,8 @@ point before presenting decoded media.
 When joining a live track, a subscriber SHOULD start at the newest Group whose
 first Object is available when `mpeg2tsRandomAccess` is true. Otherwise, a
 subscriber SHOULD select a starting Group far enough back to encompass at
-least one complete PSI repetition cycle before its target presentation time;
-when `mpeg2tsPsiInterval` is declared, that value bounds the maximum look-back
-interval needed. A subscriber MAY use the MSF Media Timeline {{MSF}} to
+least one complete PSI repetition cycle before its target presentation time.
+A subscriber MAY use the MSF Media Timeline {{MSF}} to
 resolve this time bound to a concrete MOQT Group location for use with a
 Joining FETCH
 {{MOQTransport}}. A subscriber MUST NOT begin media presentation until it has
