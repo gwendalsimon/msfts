@@ -285,6 +285,9 @@ without modification: no program selection, no packet identifier remap, no PAT
 or PMT rewrite, and no insertion or removal of null packets. A subscriber can
 reconstruct the source stream byte-for-byte.
 
+A publisher SHOULD verify that its pipeline preserves every source packet
+before it declares `mpeg2tsModified` false.
+
 When the source is a single-program transport stream, `mpeg2tsMpts`
 ({{mpeg2ts-mpts}}) is false. The catalog does not need to describe the
 program, because the PAT and PMT reach the subscriber unaltered within one PSI
@@ -984,6 +987,10 @@ policy.
 Catalog metadata is also untrusted input. Subscribers MUST validate packet
 sizes, payload lengths, Base64 values, PIDs, program numbers, and object
 ordering before using the values to allocate memory or configure decoders.
+
+A subscriber cannot check that `mpeg2tsModified` is accurate.
+{{object-payload-format}} establishes that a track is well formed, not that
+its packets are the ones the publisher received.
 
 Object-level encryption protects MOQT Object payloads but does not hide MOQT
 namespace, track name, Group ID, Object ID, object size, or delivery timing
