@@ -56,6 +56,23 @@ normative:
 
 informative:
   LOC: I-D.draft-ietf-moq-loc
+  ISO138189:
+    title: "Information technology - Generic coding of moving pictures and
+            associated audio information - Part 9: Extension for real time
+            interface for systems decoders"
+    author:
+      org: ISO/IEC
+    seriesinfo:
+      ISO/IEC: 13818-9
+    date: 1996
+  TR101290:
+    title: "Digital Video Broadcasting (DVB); Measurement guidelines for DVB
+            systems"
+    author:
+      org: European Telecommunications Standards Institute
+    seriesinfo:
+      ETSI TR: 101 290 V1.4.1
+    date: 2020-06
   SCTE35Timeline: I-D.draft-wilaw-moq-scte35-event-timeline
   DVBSI:
     title: "Digital Video Broadcasting (DVB); Specification for Service
@@ -207,6 +224,15 @@ Object boundaries are packaging boundaries and do not change MPEG-2 Transport
 Stream semantics. Continuity counters, adaptation fields, PCR, Presentation
 Time Stamp (PTS), Decoding Time Stamp (DTS), PSI, and other transport-stream
 syntax remain inside the source packets.
+
+MPEG-2 Transport Stream semantics cover a delivery schedule as well as syntax.
+The PCR values in a stream state when each transport-stream byte is meant to
+reach a decoder, and {{ISO138181}}, Section 2.4.2 expresses the buffer
+constraints of the Transport Stream System Target Decoder against that
+schedule. {{ISO138189}} gives the tolerance within which a delivered stream
+matches the schedule, and {{TR101290}} defines the limits that a DVB
+deployment must meet. Object boundaries do not alter the schedule that a
+stream describes, and {{pcr-timing}} covers how MOQT delivery relates to it.
 
 When `mpeg2tsModified` ({{mpeg2ts-modified}}) is false, a publisher MUST NOT
 modify the continuity counter of any source packet and MUST NOT remap PIDs.
@@ -363,7 +389,9 @@ packets arrive. MOQT delivers whole Objects, and a relay can serve them from
 its cache as fast as the link allows, so arrival timing carries no information
 about the source. A deployment that feeds equipment relying on arrival rate
 needs a gateway that sends the reconstructed packet stream at the rate
-`mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) declares.
+`mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) declares. Conformance to the delivery
+schedule is therefore a property of the point where a transport-stream output
+is produced, and not of the carriage between publisher and subscriber.
 
 ## Splice Signaling {#splice-signaling}
 
