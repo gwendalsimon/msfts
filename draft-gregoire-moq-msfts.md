@@ -308,6 +308,9 @@ except:
   0x0001, which no PMT lists.
 * Null packets (PID 0x1FFF), which the publisher MAY drop or retain.
 
+A publisher that rewrites the PAT and the PMT SHOULD emit them at least as
+often as the source stream did.
+
 A publisher filtering a scrambled transport stream MUST retain the conditional
 access packets required for descrambling. Conditional access integration is
 application-specific and outside the scope of this document.
@@ -369,6 +372,10 @@ valid MPEG-2 Transport Stream SHOULD build a PAT listing the carried program
 and a PMT listing the PIDs of the subscribed tracks. It SHOULD then take PCR
 from the track whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` that those
 tracks declare.
+
+A constructed PAT and PMT reach a receiver only if the subscriber repeats
+them. The subscriber SHOULD repeat them at the interval that the standard
+governing the output requires, for example {{TR101290}} for a DVB deployment.
 
 ## PCR and Timing {#pcr-timing}
 
