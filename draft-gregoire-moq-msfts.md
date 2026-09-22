@@ -301,7 +301,8 @@ except:
 * PMT packets for the selected program, on the PID that the rewritten PAT
   lists.
 * Packets on any PID that the selected program's PMT lists, including the PCR
-  PID and the PIDs of all elementary streams.
+  PID, the PIDs of all elementary streams, and the PIDs that any
+  CA_descriptor references.
 * Packets carrying the service information (SI) tables that the publisher
   retains, if any.
 * Conditional access packets, including the Conditional Access Table on PID
@@ -313,7 +314,10 @@ often as the source stream did.
 
 A publisher filtering a scrambled transport stream MUST retain the conditional
 access packets required for descrambling. Conditional access integration is
-application-specific and outside the scope of this document.
+application-specific and outside the scope of this document. A CAT carried
+from a multi-program source references the entitlement management streams of
+every program in the multiplex, so a publisher SHOULD rewrite it to leave only
+the entries for the carried program.
 
 The `mpeg2tsProgramNumber` field ({{mpeg2ts-program-number}}) SHOULD be
 present on per-program tracks to identify the program carried. When multiple
@@ -376,6 +380,12 @@ tracks declare.
 A constructed PAT and PMT reach a receiver only if the subscriber repeats
 them. The subscriber SHOULD repeat them at the interval that the standard
 governing the output requires, for example {{TR101290}} for a DVB deployment.
+
+An ES-level track carries no PAT, PMT, or CAT, so it carries no conditional
+access association between a scrambled elementary stream and the streams that
+key it. A publisher also cannot identify random access points in a payload it
+cannot decrypt, so it cannot set `mpeg2tsRandomAccess` to true. A publisher
+carrying a scrambled source SHOULD use unmodified or per-program carriage.
 
 ## PCR and Timing {#pcr-timing}
 
@@ -935,9 +945,12 @@ decoder.
 
 # Content Protection {#content-protection}
 
-This packaging format preserves any scrambling or conditional access
-information present in the MPEG-2 Transport Stream. Transport-stream
-scrambling is opaque to MOQT relays and to this specification.
+Unmodified carriage preserves any scrambling and conditional access
+information present in the MPEG-2 Transport Stream. Per-program carriage
+preserves it when the publisher retains the conditional access packets
+({{per-program-carriage}}). ES-level carriage does not preserve it.
+Transport-stream scrambling is opaque to MOQT relays and to this
+specification.
 
 A publisher MAY apply object-level encryption using a mechanism such as Secure
 Objects {{SecureObjects}}, when the catalog signals it. A subscriber then
