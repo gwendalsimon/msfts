@@ -337,7 +337,12 @@ A publisher producing multiple ES-level tracks for the same program SHOULD
 align Group boundaries across those tracks so that matching Group numbers
 correspond to the same presentation position. Elementary streams have
 different frame durations, so exact alignment is not always possible.
-{{subscriber-processing}} defines how a subscriber combines ES-level tracks.
+
+A subscriber that combines multiple ES-level tracks and wants to output a
+valid MPEG-2 Transport Stream SHOULD build a PAT listing the carried program
+and a PMT listing the PIDs of the subscribed tracks. It SHOULD then take PCR
+from the track whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` that those
+tracks declare.
 
 ## PCR and Timing {#pcr-timing}
 
@@ -547,6 +552,11 @@ SCTE-35 is published as an ES-level track, the track's `mpeg2tsEsPid` and
 `role` fields identify it.
 
 ## Use of MSF Initialization Data {#init-data}
+
+A subscriber obtains the PAT and the PMT in one of three ways: it reads them
+from `initDataList` when the track declares `initRef`, it accumulates packets
+from the joining point until the publisher repeats the PSI, or it fetches a
+past Object that carries them.
 
 The `initRef` track field and the root `initDataList` field are defined by
 MSF. An mpeg2ts track MAY use those fields to carry initialization data. The track sets `initRef` to the
@@ -847,45 +857,6 @@ PMT listing the subscribed PIDs and sourcing PCR from the video track (PID
   ]
 }
 ~~~
-
-# Subscriber Processing {#subscriber-processing}
-
-A subscriber obtains the catalog using the MSF catalog workflow and subscribes
-to one or more mpeg2ts tracks. For each received Object, the subscriber:
-
-1. Validates that the payload length is a non-zero integer multiple of
-   `mpeg2tsPacketSize`.
-2. Validates the TS sync byte position for each source packet. 3. Reconstructs
-the packet stream by appending the source packets in MOQT object
-   order.
-4. Applies normal MPEG-2 Transport Stream demultiplexing, timing recovery, and
-   decoder initialization.
-
-If validation fails, the subscriber SHOULD discard the invalid Object and
-treat the reconstructed packet stream as discontinuous. A subscriber MAY
-continue processing at the next Object, but it SHOULD wait for a random access
-point before presenting decoded media.
-
-When joining a live track, a subscriber SHOULD start at the newest Group whose
-first Object is available when `mpeg2tsRandomAccess` is true. Otherwise, a
-subscriber SHOULD select a starting Group far enough back to encompass at
-least one complete PSI repetition cycle before its target presentation time.
-A subscriber MAY use the MSF Media Timeline {{MSF}} to
-resolve this time bound to a concrete MOQT Group location for use with a
-Joining FETCH
-{{MOQTransport}}. A subscriber MUST NOT begin media presentation until it has
-received a valid PAT and PMT for the program to be decoded.
-
-When a subscriber receives ES-level tracks ({{es-level-carriage}}), it MUST
-align on the same starting Group number across all subscribed ES-level tracks
-for the same program before combining them. The subscriber constructs the
-combined TS output by building a PAT listing the carried program and a PMT
-listing the PIDs of all subscribed ES-level tracks, then interleaving packets
-from all tracks. PCR is sourced from the track where `mpeg2tsPcrPid` equals
-`mpeg2tsEsPid`. A subscriber MUST NOT begin media presentation until it has
-received at least one Group from each subscribed ES-level track and has
-obtained the originating program's PAT and PMT, either from `initDataList` or
-from the packet stream.
 
 # Switching and Alternate Renditions {#switching}
 
