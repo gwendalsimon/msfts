@@ -322,8 +322,8 @@ separate tracks.
 Removing null packets changes the inter-packet byte spacing that
 constant-bit-rate receivers use to recover the mux clock. A subscriber wishing
 to reconstruct a constant-bit-rate output stream cannot derive the original
-rate from the stream alone; publishers that remove null packets SHOULD declare
-the source mux rate using `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}).
+rate from the stream alone, so a publisher declares it with `mpeg2tsMuxRate`
+({{mpeg2ts-mux-rate}}).
 
 A publisher that retains SI tables SHOULD declare their PIDs using
 `mpeg2tsSiPids` ({{mpeg2ts-si-pids}}), so that a subscriber can tell which
@@ -388,10 +388,14 @@ A subscriber cannot recover the source mux clock from the rate at which
 packets arrive. MOQT delivers whole Objects, and a relay can serve them from
 its cache as fast as the link allows, so arrival timing carries no information
 about the source. A deployment that feeds equipment relying on arrival rate
-needs a gateway that sends the reconstructed packet stream at the rate
-`mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) declares. Conformance to the delivery
-schedule is therefore a property of the point where a transport-stream output
-is produced, and not of the carriage between publisher and subscriber.
+needs a gateway that paces the reconstructed packet stream. `mpeg2tsMuxRate`
+({{mpeg2ts-mux-rate}}) gives that gateway a target rate. A target rate does
+not reproduce the source schedule, because the source byte clock runs
+independently of the gateway clock. Reproducing the schedule requires
+per-packet timing that this document does not define. Conformance to the
+delivery schedule is therefore a property of the point where a
+transport-stream output is produced, and not of the carriage between publisher
+and subscriber.
 
 ## Splice Signaling {#splice-signaling}
 
@@ -523,11 +527,22 @@ track.
 
 Required: Optional JSON Type: Number Location: Track Object
 
-The nominal source mux rate of the transport stream in bits per second. This
-field is advisory. A subscriber reconstructing a constant-bit-rate output
-stream MAY use this value to restore the original mux rate when null packets
-have been removed. This field MUST be absent when `mpeg2tsEsPid` is present or
-`mpeg2tsMpts` is true.
+The nominal mux rate of the source transport stream in bits per second,
+counted over 188-octet TS packets. The count excludes the four-octet timestamp
+prefix of an M2TS source packet.
+
+A publisher SHOULD declare this field when it removes null packets, and on
+ES-level tracks, which carry no null packets at all. Where a program is
+published as several ES-level tracks, every track of that program SHOULD
+declare the same value, which describes the reconstructed program and not any
+single track.
+
+The declared rate is a stuffing target rather than a timing source. An
+implementation producing a transport-stream output recovers its clock from the
+PCR values in the stream, and uses this rate to decide how much null stuffing
+to insert.
+
+This field MUST be absent when `mpeg2tsMpts` is true.
 
 ## SI PIDs {#mpeg2ts-si-pids}
 
@@ -710,6 +725,7 @@ used because the programs carry different content.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
+      "mpeg2tsMuxRate": 6500000,
       "mpeg2tsRandomAccess": true
     },
     {
@@ -725,6 +741,7 @@ used because the programs carry different content.
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 2,
       "mpeg2tsPcrPid": 513,
+      "mpeg2tsMuxRate": 4500000,
       "mpeg2tsRandomAccess": true
     }
   ]
@@ -835,6 +852,7 @@ PMT listing the subscribed PIDs and sourcing PCR from the video track (PID
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
+      "mpeg2tsMuxRate": 6000000,
       "mpeg2tsEsPid": 257,
       "mpeg2tsRandomAccess": true
     },
@@ -851,6 +869,7 @@ PMT listing the subscribed PIDs and sourcing PCR from the video track (PID
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
+      "mpeg2tsMuxRate": 6000000,
       "mpeg2tsEsPid": 258,
       "mpeg2tsRandomAccess": true
     },
@@ -867,6 +886,7 @@ PMT listing the subscribed PIDs and sourcing PCR from the video track (PID
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
       "mpeg2tsPcrPid": 257,
+      "mpeg2tsMuxRate": 6000000,
       "mpeg2tsEsPid": 259,
       "mpeg2tsRandomAccess": true
     },
@@ -880,6 +900,7 @@ PMT listing the subscribed PIDs and sourcing PCR from the video track (PID
       "mimeType": "video/mp2t",
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
+      "mpeg2tsMuxRate": 6000000,
       "mpeg2tsEsPid": 18
     }
   ]
