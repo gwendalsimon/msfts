@@ -615,11 +615,17 @@ about where in a Group decoding can begin.
 Required: Optional JSON Type: String Location: Track Object
 
 For 192-octet source packets, this field identifies the interpretation of the
-four-octet source-packet timestamp. The value "arrival-time" indicates an
-arrival-time or emission-time stamp associated with the following TS packet.
-The value "opaque" indicates that the timestamp prefix is carried without
-specified semantics. This field MUST NOT be present when `mpeg2tsPacketSize`
-is 188.
+four-octet prefix. This field MUST NOT be present when `mpeg2tsPacketSize` is
+188.
+
+The value "arrival-time" indicates the Blu-ray Disc Audio/Visual (BDAV)
+convention. The four octets are big-endian: the two most significant bits
+carry a copy permission indicator, and the remaining 30 bits carry an arrival
+time on a 27 MHz clock. That arrival time wraps every 2^30 ticks, or
+approximately 39.77 seconds.
+
+The value "opaque" indicates that the publisher carries the prefix without
+specified semantics.
 
 ## SCTE-35 PID {#mpeg2ts-scte35-pid}
 
