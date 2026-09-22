@@ -266,7 +266,7 @@ the source packets without modification ({{unmodified-carriage}}). When
 
 Three fields together determine how a track carries its source:
 
-| `mpeg2tsModified` | `mpeg2tsEsPid` | `mpeg2tsMpts` | Carriage |
+| mpeg2tsModified | mpeg2tsEsPid | mpeg2tsMpts | Carriage |
 |:==================|:===============|:==============|:=========|
 | false | absent | false | Unmodified, single program |
 | false | absent | true | Unmodified, whole multiplex |
