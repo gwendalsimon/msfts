@@ -21,3 +21,4 @@ package-lock.json
 report.xml
 !requirements.txt
 .codex
+docs/
