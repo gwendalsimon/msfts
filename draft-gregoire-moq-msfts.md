@@ -250,8 +250,7 @@ packets required for program demultiplexing.
 For a track carrying a whole multiplex, Group boundary placement depends on
 whether the publisher can identify random access points across the multiplex.
 A publisher that can identify them MAY align Group boundaries to those points
-and set `mpeg2tsRandomAccess` to true. A publisher that cannot SHOULD start a
-new Group after a fixed number of Objects.
+and set `mpeg2tsRandomAccess` to true.
 
 When `mpeg2tsRandomAccess` ({{mpeg2ts-random-access}}) is true, the first
 Object in every Group MUST provide a valid random access starting point for
