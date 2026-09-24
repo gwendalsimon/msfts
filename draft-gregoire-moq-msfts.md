@@ -117,10 +117,9 @@ Integrated Receiver Decoder (IRD). A track of the second family carries the
 units of one elementary stream: a frame in an LOC track {{LOC}}, or a
 Packetized Elementary Stream (PES) packet or a section in an mpeg2ts track
 ({{es-units-carriage}}, {{media-frames-carriage}}). It serves a subscriber
-that feeds a decoder. A
-subscriber that outputs a transport stream keeps the packets of the first
-family. For the second family it builds the packets, the signaling, and the
-timing itself.
+that feeds a decoder. A subscriber that outputs a transport stream keeps the
+packets of the first family. For the second family it builds the packets, the
+signaling, and the timing itself.
 
 This document describes version 2 of the MSFTS packaging format.
 
@@ -639,7 +638,8 @@ either "pes" or "section". {{es-units-carriage}} defines the mode.
 {{payload-units}} defines the Object payload for both values.
 
 This field MUST be absent unless `mpeg2tsEsPid` is present. When it is
-present, `mpeg2tsPacketSize` and `mpeg2tsTimestampMode` MUST be absent. A subscriber that does not recognize the value MUST reject the track, rather
+present, `mpeg2tsPacketSize` and `mpeg2tsTimestampMode` MUST be absent. A
+subscriber that does not recognize the value MUST reject the track, rather
 than read its Object payload as source packets.
 
 ## Program Number {#mpeg2ts-program-number}
@@ -1093,15 +1093,14 @@ align their Group boundaries on the same presentation positions.
 
 A subscriber taking the video track and one audio track also takes the PAT and
 PMT tracks, removes the entries of the streams it did not take from the PMT,
-and emits the three tables with the packets of the streams it carries.
+and emits the two tables with the packets of the streams it carries.
 
 ## No-Packet Tracks - LOC Media, PES, and Sections {#example-no-packet}
 
 This example shows the same program published without TS source packets. The
-video track uses LOC
-packaging, the audio track carries complete PES packets because the publisher
-did not decode it, and the Program Map Table travels as sections on its own
-track.
+video track uses LOC packaging, the audio track carries complete PES packets
+because the publisher did not decode it, and the Program Map Table travels as
+sections on its own track.
 
 ~~~ json
 {
