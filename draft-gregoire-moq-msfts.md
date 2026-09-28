@@ -485,6 +485,15 @@ carries neither the byte schedule nor the packet layout of the source, so a
 deployment that needs either one uses an unmodified mode or
 {{per-program-carriage}}.
 
+Because the subscriber generates them, the continuity counters and the PCR of
+its output describe the reconstruction rather than the content. When the
+units of the elementary stream on the PCR PID stop arriving, the subscriber
+continues to emit the PCR on that PID, so its counters stay sequential, the
+PCR stays within its limits, and no Priority 1 indicator of {{TR101290}}
+reports the loss. A subscriber, or a monitor of its output, needs to check the
+presence and the rate of the units of each elementary stream as well as the
+syntax of the output.
+
 ### Media Frames {#media-frames-carriage}
 
 The publisher decoded the elementary stream, and each Object carries one media
