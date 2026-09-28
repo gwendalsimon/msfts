@@ -74,6 +74,13 @@ informative:
       ETSI TR: 101 290 V1.4.1
     date: 2020-06
   SCTE35Timeline: I-D.draft-wilaw-moq-scte35-event-timeline
+  ST20227:
+    title: "Seamless Protection Switching of RTP Datagrams"
+    author:
+      org: Society of Motion Picture and Television Engineers
+    seriesinfo:
+      SMPTE ST: 2022-7:2019
+    date: 2019
   DVBSI:
     title: "Digital Video Broadcasting (DVB); Specification for Service
             Information (SI) in DVB systems"
@@ -273,6 +280,13 @@ A subscriber MUST reject an Object that carries more than one unit, or part of
 one. The units carry no continuity counter, no adaptation field, and no PCR,
 and {{es-units-carriage}} states what a subscriber regenerates.
 
+A section carries no PTS, so a "section" Object gives a subscriber no time at
+which to place it in its output. A publisher SHOULD give each "section" Object
+the Timestamp and Timescale properties of {{LOC}}. The timestamp is the time at
+which the first byte of the section enters the decoder, as Section 2.4.2 of
+{{ISO138181}} computes it from the PCR, at a timescale of 90000 and without
+wrapping.
+
 ### Media Frames {#payload-frames}
 
 A track whose `packaging` is "loc" carries one media frame per Object, and
@@ -435,7 +449,9 @@ elementary streams that the PMT lists, it MUST remove the entries for the
 streams it does not carry, correct the CRC of the section, and increment its
 `version_number`. When the tracks carry source packets, it MUST take the PCR
 from the track whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` that those
-tracks declare.
+tracks declare. The order of the packets within each PID does not give their
+position in the multiplex, so the stream it builds carries neither the byte
+schedule nor the packet layout of the source.
 
 A subscriber that finds no PAT track and no PMT track cannot produce a
 conformant PMT, because the catalog carries no stream type for an elementary
@@ -516,6 +532,36 @@ deployment. Where the receiver expects a constant bit rate, the subscriber
 SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target. A
 stuffing target does not reproduce the source schedule. Reproducing it
 requires timing information that this document does not define.
+
+## Rebuilt Output {#rebuilt-output}
+
+This section applies to a subscriber that outputs a transport stream from
+tracks in the modes of {{es-level-carriage}}, {{es-units-carriage}}, or
+{{media-frames-carriage}}.
+
+The subscriber MUST repeat each table that it outputs at the interval that the
+standard governing its output requires, including the service information that
+it receives in "section" Objects. The Time and Date Table and the Time Offset
+Table of {{DVBSI}} are the exception, because each states the current time:
+the subscriber MUST NOT emit either one again with unchanged content. It emits
+each new one that it receives, or it generates them from a clock traceable to
+UTC.
+
+The subscriber MUST emit the PAT and the PMT before the first packet of any
+elementary stream that they describe. A subscriber that generates continuity
+counters SHOULD make a missing Object visible in its output, for example as a
+continuity counter discontinuity on the PID of that Object.
+
+Two subscribers that feed a redundant pair, for example one merged under
+{{ST20227}}, need to emit the same packets. A subscriber in such a deployment
+SHOULD derive each field that it generates from the Objects that it receives,
+and not from its own state such as when it joined, so that two instances of
+one implementation emit the same packets. This applies to the order of units
+across tracks, the repetition instants of each table, each `version_number`,
+and the placement of the PCR and of stuffing. Continuity counters are the
+exception: a subscriber cannot know how many packets a PID carried before it
+joined, so two subscribers that joined at different points emit different
+counters.
 
 ## Splice Signaling {#splice-signaling}
 
