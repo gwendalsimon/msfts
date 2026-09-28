@@ -514,8 +514,11 @@ carry. That subscriber SHOULD meet the PCR repetition and accuracy limits of
 the standard governing the receiver, given by {{TR101290}} for a DVB
 deployment. Where the receiver expects a constant bit rate, the subscriber
 SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target. A
-stuffing target does not reproduce the source schedule. Reproducing it
-requires timing information that this document does not define.
+stuffing target does not reproduce the source schedule. Where the source
+packets carry arrival times ({{mpeg2ts-timestamp-mode}}), those times record
+when each packet arrived, and a subscriber can reproduce the schedule from
+them. For other tracks, reproducing the schedule requires timing information
+that this document does not define.
 
 ## Splice Signaling {#splice-signaling}
 
