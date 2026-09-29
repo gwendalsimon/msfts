@@ -431,18 +431,16 @@ events without parsing the packet stream.
 
 # Catalog {#catalog}
 
-The MSF catalog {{MSF}} describes an mpeg2ts track. This document extends that
-catalog by defining the `mpeg2ts` value for the inherited `packaging` field
-and additional fields for track objects that use that value. The catalog track
-name, root catalog fields, common track fields, delta update rules, variable
-substitution rules, and authorization signaling are inherited unchanged from
-MSF unless this document explicitly states otherwise. A parser MUST ignore
-fields it does not understand.
+This document extends the MSF catalog {{MSF}} with the "mpeg2ts" value of the
+`packaging` field and with the track fields of {{track-fields}}. The rest of
+the catalog follows MSF unchanged, including the root fields, the common track
+fields, delta updates, and authorization. A parser MUST ignore fields it does
+not understand.
 
 ## Track Object Fields {#track-fields}
 
-{{track-fields-table}} lists the mpeg2ts-specific fields defined within a
-track object. A track whose `packaging` is "mpeg2ts" uses them.
+{{track-fields-table}} lists the track object fields that this document defines
+for an mpeg2ts track.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
@@ -458,8 +456,8 @@ track object. A track whose `packaging` is "mpeg2ts" uses them.
 | SCTE-35 PID                   | mpeg2tsScte35Pid          | {{mpeg2ts-scte35-pid}} |
 {: #track-fields-table title="Track object fields defined by this document"}
 
-Use of the MSF `initRef` and `initDataList` fields by mpeg2ts tracks is
-described in {{init-data}}.
+{{init-data}} describes how an mpeg2ts track uses the MSF `initRef` and
+`initDataList` fields.
 
 ## Mode {#mpeg2ts-mode}
 
@@ -484,40 +482,33 @@ Required: Yes JSON Type: Number Location: Track Object
 
 The source-packet size in octets. The value MUST be either 188 or 192. A value
 of 188 identifies ordinary MPEG-2 TS packets. A value of 192 identifies M2TS
-source packets with a four-octet timestamp prefix followed by a 188-octet TS
-packet.
+source packets, whose four-octet prefix {{mpeg2ts-timestamp-mode}} describes.
 
 ## ES PID {#mpeg2ts-es-pid}
 
 Required: Conditional JSON Type: Number Location: Track Object
 
-The PID that the single elementary stream or signaling table of this track
-held in the source. When present, the track carries only the packets of that
-PID, and it never carries null packets. A track carrying an elementary stream
-carries neither PAT nor PMT, and a track whose `role` is "pat" or "pmt" carries
-that table alone. This field MUST be present in the "es-packets" mode and
-MUST be absent in the other modes. A subscriber MUST reject a track that
-breaks this rule.
+The PID that the elementary stream or signaling table of this track held in
+the source. The track carries only the packets of that PID. A track that
+carries an elementary stream carries neither the PAT nor the PMT. A track
+whose `role` is "pat" or "pmt" carries that table alone. This field MUST be
+present in the "es-packets" mode and MUST be absent in the other modes. A
+subscriber MUST reject a track that breaks this rule.
 
-When this field is present, `mpeg2tsSiPids` and `mpeg2tsScte35Pid` MUST be
-absent.
+A PID alone does not say what a track carries. A publisher SHOULD set the MSF
+`role` field of an ES-level track as {{role-table}} gives.
 
-The MSF `role` field is a useful companion to `mpeg2tsEsPid`, because a PID
-alone does not say what the track carries. For tracks carrying DVB or ATSC SI
-tables, publishers SHOULD set `role` to one of the following values: `"nit"`
-for the Network Information Table (PID 0x0010), `"sdt"` for the Service
-Description Table and Bouquet Association Table (PID 0x0011), `"eit"` for the
-Event Information Table (PID 0x0012), and `"tdt"` for the Time and Date Table
-and Time Offset Table (PID 0x0014). For tracks carrying SCTE-35 splice
-information, publishers SHOULD set `role` to `"scte35"`. For media elementary
-streams, publishers SHOULD set `role` to the MSF-defined value for the stream
-type, for example `"video"` or `"audio"`.
-
-Two `role` values name the program signaling that {{es-level-carriage}}
-requires. For the Program Association Table, publishers SHOULD set `role` to
-`"pat"` and `mpeg2tsEsPid` to 0x0000. For the Program Map Table of the carried
-program, publishers SHOULD set `role` to `"pmt"` and `mpeg2tsEsPid` to the PID
-that the PAT lists for that program.
+| role | Content | mpeg2tsEsPid |
+|:=====|:========|:=============|
+| "pat" | PAT | 0x0000 |
+| "pmt" | PMT of the carried program | The PID that the PAT lists |
+| "nit" | Network Information Table | 0x0010 |
+| "sdt" | Service Description Table and Bouquet Association Table | 0x0011 |
+| "eit" | Event Information Table | 0x0012 |
+| "tdt" | Time and Date Table and Time Offset Table | 0x0014 |
+| "scte35" | SCTE-35 splice information | The PID that the PMT lists |
+| MSF value, for example "video" or "audio" | Media elementary stream | The PID that the PMT lists |
+{: #role-table title="Values of role on an ES-level track"}
 
 ## Program Number {#mpeg2ts-program-number}
 
@@ -538,11 +529,6 @@ The PID carrying the PCR of the program that this track carries. This field is
 advisory and does not replace the PCR signaling in the transport stream. It
 MUST be absent in the "unmodified-multiplex" mode.
 
-In ES-level carriage, the PCR may travel on a different track. A subscriber
-that needs PCR timing for an ES-level track MUST also subscribe to the track
-whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` declared by that ES-level
-track.
-
 ## Mux Rate {#mpeg2ts-mux-rate}
 
 Required: Optional JSON Type: Number Location: Track Object
@@ -557,9 +543,9 @@ published as several ES-level tracks, every track of that program SHOULD
 declare the same value, which describes the reconstructed program and not any
 single track.
 
-The declared rate is a stuffing target rather than a timing source. A
-subscriber recovers its clock from the PCR values in the stream, and uses this
-rate to decide how much null stuffing to insert.
+The declared rate is a stuffing target ({{egress-timing}}). A subscriber
+recovers its clock from the PCR values and uses the rate to decide how much
+null stuffing to insert.
 
 This field MUST be absent in the "unmodified-multiplex" mode.
 
@@ -567,14 +553,12 @@ This field MUST be absent in the "unmodified-multiplex" mode.
 
 Required: Optional JSON Type: Array Location: Track Object
 
-An array of the PIDs carrying the SI tables that a per-program track retains.
-DVB and ATSC place each table on its own PID, so a publisher retaining more
-than one table lists one PID per table. The array does not repeat the PIDs
-that the PMT lists.
+An array of the PIDs that carry the SI tables that a per-program track retains
+({{per-program-carriage}}), each PID listed once. The array does not repeat the
+PIDs that the PMT lists.
 
-A publisher SHOULD include this field when it retains SI tables
-({{per-program-carriage}}). The field is advisory: a subscriber MAY use it to
-learn which tables are present without parsing the packet stream.
+The field is advisory. A subscriber MAY use it to learn which tables are
+present without parsing the packet stream.
 
 This field MUST be absent when `mpeg2tsEsPid` is present, and in the
 "unmodified-multiplex" mode. An ES-level track carries one table, which its
@@ -592,9 +576,9 @@ about where in a Group decoding can begin.
 
 Required: Optional JSON Type: String Location: Track Object
 
-For 192-octet source packets, this field identifies the interpretation of the
-four-octet prefix. This field MUST NOT be present when `mpeg2tsPacketSize` is
-188.
+This field gives the meaning of the four-octet prefix of a 192-octet source
+packet. This field MUST NOT be present when `mpeg2tsPacketSize` is 188. When a
+192-octet track omits this field, a subscriber treats the prefix as "opaque".
 
 The value "arrival-time" indicates the Blu-ray Disc Audio/Visual (BDAV)
 convention. The four octets are big-endian: the two most significant bits
@@ -610,8 +594,7 @@ specified semantics.
 Required: Optional JSON Type: Number Location: Track Object
 
 The PID carrying SCTE-35 splice_info_section() messages for this track. This
-field is advisory; SCTE-35 messages are also discoverable via the PMT
-conditional access or registration descriptor. When present, a subscriber MAY
+field is advisory. SCTE-35 messages are also discoverable from the PMT. When present, a subscriber MAY
 use this value to locate splice events without parsing the PMT. Publishers
 SHOULD include this field when the track carries SCTE-35 splice signaling.
 This field MUST be absent when `mpeg2tsEsPid` is present, and in the
@@ -629,8 +612,9 @@ fetches a past Object that carries them.
 MSF defines the `initRef` track field and the root `initDataList` field. An
 mpeg2ts track MAY use those fields to carry initialization data. The track
 sets `initRef` to the `id` of an `initDataList` entry whose `type` MUST be
-"inline". The Base64 {{BASE64}} decoded value of the entry's `data` field MUST be a sequence of whole source packets
-using the packet size that `mpeg2tsPacketSize` declares.
+"inline". The Base64 {{BASE64}} decoded value of the entry's `data` field MUST
+be a sequence of whole source packets using the packet size that
+`mpeg2tsPacketSize` declares.
 
 Publishers SHOULD include current PAT and PMT packets in the referenced
 initialization data when those tables are not guaranteed to be available at
@@ -638,8 +622,8 @@ the first Object of each Group. When PSI changes within a live track, the
 publisher SHOULD publish an updated initialization data entry in a new
 independent catalog before publishing Objects that rely on the changed PSI.
 Subscribers MUST NOT assume that referenced initialization data remains valid
-after the MPEG-2 PSI `version_number` changes; updated PSI in media Objects
-takes precedence.
+after the MPEG-2 PSI `version_number` changes. Updated PSI in the Objects takes
+precedence.
 
 A publisher using an unmodified mode ({{unmodified-program-carriage}})
 typically omits `initRef`, because it does not inspect the source stream and
