@@ -90,6 +90,7 @@ informative:
       ATSC: A/65:2013
     date: 2013
   SecureObjects: I-D.draft-ietf-moq-secure-objects
+  MOQMPEGTS: I-D.draft-lcurley-moq-mpegts
 
 --- abstract
 
@@ -191,6 +192,9 @@ that its Objects carry, how the publisher derived the track, which
 program or elementary stream the track carries, and where the timing reference
 lives. MSFTS defines the catalog signaling that carries those decisions from
 the publisher to the subscriber.
+
+Demultiplexed carriage, where each elementary stream travels without its TS
+packets, is out of scope. {{MOQMPEGTS}} addresses it.
 
 # Media Packaging {#media-packaging}
 
@@ -968,6 +972,7 @@ align their Group boundaries on the same presentation positions.
       "mimeType": "video/mp2t",
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
+      "mpeg2tsMuxRate": 6000000,
       "mpeg2tsEsPid": 0
     },
     {
@@ -980,6 +985,7 @@ align their Group boundaries on the same presentation positions.
       "mimeType": "video/mp2t",
       "mpeg2tsPacketSize": 188,
       "mpeg2tsProgramNumber": 1,
+      "mpeg2tsMuxRate": 6000000,
       "mpeg2tsEsPid": 256
     }
   ]
