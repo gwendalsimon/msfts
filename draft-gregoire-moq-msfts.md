@@ -73,13 +73,6 @@ informative:
       ETSI TR: 101 290 V1.4.1
     date: 2020-06
   SCTE35Timeline: I-D.draft-wilaw-moq-scte35-event-timeline
-  ST20227:
-    title: "Seamless Protection Switching of RTP Datagrams"
-    author:
-      org: Society of Motion Picture and Television Engineers
-    seriesinfo:
-      SMPTE ST: 2022-7:2019
-    date: 2019
   DVBSI:
     title: "Digital Video Broadcasting (DVB); Specification for Service
             Information (SI) in DVB systems"
@@ -380,15 +373,20 @@ presentation position.
 
 A subscriber that combines ES-level tracks and outputs a TS MUST subscribe to
 the PAT track and to the PMT track of the program
-when the catalog offers them. It MUST emit both tables, and it MUST repeat
-them at the interval that the standard governing its output requires, for
+when the catalog offers them. It MUST emit both tables before the first packet
+of any elementary stream that they describe, and it MUST repeat them at the
+interval that the standard governing its output requires, for
 example {{TR101290}} for a DVB deployment. When it carries a subset of the
 elementary streams that the PMT lists, it MUST remove the entries for the
 streams it does not carry, correct the CRC of the section, and increment its
 `version_number`. It MUST take the PCR from the track whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` that those
-tracks declare. The order of the packets within each PID does not give their
-position in the multiplex, so the stream it builds carries neither the byte
-schedule nor the packet layout of the source.
+tracks declare.
+
+The order of the packets within each PID does not give their position in the
+multiplex. Only arrival times ({{mpeg2ts-timestamp-mode}}) stamped on one clock
+across all the tracks of a program give that position. Without them, the
+stream that a subscriber builds does not carry the packet layout of the
+source.
 
 A subscriber that finds no PAT track and no PMT track cannot produce a
 conformant PMT, because the catalog carries no stream type for an elementary
@@ -434,40 +432,11 @@ carry. That subscriber SHOULD meet the PCR repetition and accuracy limits of
 the standard governing the receiver, given by {{TR101290}} for a DVB
 deployment. Where the receiver expects a constant bit rate, the subscriber
 SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target. A
-stuffing target does not reproduce the source schedule. Where the source
-packets carry arrival times ({{mpeg2ts-timestamp-mode}}), those times record
-when each packet arrived, and a subscriber can reproduce the schedule from
-them. For other tracks, reproducing the schedule requires timing information
-that this document does not define.
-
-## Rebuilt Output {#rebuilt-output}
-
-This section applies to a subscriber that outputs a transport stream from
-tracks in the mode of {{es-level-carriage}}.
-
-The subscriber MUST repeat each table that it outputs at the interval that the
-standard governing its output requires, including the service information that
-it receives in "section" Objects. The Time and Date Table and the Time Offset
-Table of {{DVBSI}} are the exception, because each states the current time:
-the subscriber MUST NOT emit either one again with unchanged content. It emits
-each new one that it receives, or it generates them from a clock traceable to
-UTC.
-
-The subscriber MUST emit the PAT and the PMT before the first packet of any
-elementary stream that they describe. A subscriber that generates continuity
-counters SHOULD make a missing Object visible in its output, for example as a
-continuity counter discontinuity on the PID of that Object.
-
-Two subscribers that feed a redundant pair, for example one merged under
-{{ST20227}}, need to emit the same packets. A subscriber in such a deployment
-SHOULD derive each field that it generates from the Objects that it receives,
-and not from its own state such as when it joined, so that two instances of
-one implementation emit the same packets. This applies to the order of units
-across tracks, the repetition instants of each table, each `version_number`,
-and the placement of the PCR and of stuffing. Continuity counters are the
-exception: a subscriber cannot know how many packets a PID carried before it
-joined, so two subscribers that joined at different points emit different
-counters.
+stuffing target does not reproduce the source schedule. Arrival times
+({{mpeg2ts-timestamp-mode}}) give the spacing of the packets on the clock that
+stamped them. They carry neither an absolute time nor the point where the
+stamping took place. Reproducing the source schedule at a constant latency
+requires timing information that this document does not define.
 
 ## Splice Signaling {#splice-signaling}
 
