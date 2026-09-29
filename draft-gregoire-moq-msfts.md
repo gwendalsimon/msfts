@@ -36,7 +36,6 @@ author:
     email: gwendal.simon@quortex.io
 
 normative:
-  LOC: I-D.draft-ietf-moq-loc
   MOQTransport: I-D.draft-ietf-moq-transport
   MSF: I-D.draft-ietf-moq-msf-01
   ISO138181:
@@ -117,18 +116,11 @@ MOQT Streaming Format (MSF) {{MSF}} that delivers MPEG-2 Transport Stream (TS)
 capabilities, and features of MSF, including the catalog format, the timeline,
 and alternate rendition switching.
 
-MSFTS defines two families of Object payload. A track of the first family
-carries whole TS source packets, either 188 or 192 octets each. It serves a
-subscriber that feeds equipment expecting a transport stream, for example an
-Integrated Receiver Decoder (IRD). A track of the second family carries the
-units of one elementary stream: a frame in an LOC track {{LOC}}, or a
-Packetized Elementary Stream (PES) packet or a section in an mpeg2ts track
-({{es-units-carriage}}, {{media-frames-carriage}}). It serves a subscriber
-that feeds a decoder. A subscriber that outputs a transport stream keeps the
-packets of the first family. For the second family it builds the packets, the
-signaling, and the timing itself.
+An MSFTS track carries whole TS source packets, either 188 or 192 octets
+each. It serves a subscriber that feeds equipment expecting a transport
+stream, for example an Integrated Receiver Decoder (IRD).
 
-This document describes version 2 of the MSFTS packaging format.
+This document describes version 3 of the MSFTS packaging format.
 
 # MSF Extension {#msf-extension}
 
@@ -136,10 +128,8 @@ All specifications, requirements, and terminology defined in {{MSF}} apply to
 implementations of this extension unless explicitly noted otherwise in this
 document.
 
-MSFTS uses the Low Overhead Media Container (LOC) {{LOC}} packaging defined in
-{{MSF}} for the media frames of a program ({{media-packaging}}). For an
-mpeg2ts track, this document defines the Object payload rules that LOC would
-otherwise supply ({{object-payload-format}}).
+This document defines the Object payload of an mpeg2ts track
+({{object-payload-format}}).
 
 This document uses two unrelated version numbers. The catalog `version` field
 carries the MSF revision. The MSFTS format version given in {{introduction}}
@@ -176,7 +166,7 @@ Subscriber:
 
 Receiver:
 : The equipment that consumes the reconstructed packet stream, for example an
-  Integrated Receiver Decoder (IRD). A receiver operates on source packets and
+  IRD. A receiver operates on source packets and
   needs no knowledge of MOQT. One implementation can act as both a subscriber
   and a receiver.
 
@@ -184,7 +174,7 @@ Random access point:
 : A point in the packet stream at which a receiver can begin decoding after
   receiving the applicable transport-stream tables and decoder initialization.
 
-Single-program transport stream:
+Single-program transport stream (SPTS):
 : A transport stream whose PAT lists exactly one program.
 
 Multi-program transport stream (MPTS):
@@ -211,26 +201,13 @@ the publisher to the subscriber.
 
 # Media Packaging {#media-packaging}
 
-This document describes tracks of two MSF packagings. A track whose Objects
-carry decoded media frames MUST set the MSF `packaging` field to "loc" and
-follow {{LOC}}, so a subscriber that knows nothing of MPEG-2 systems plays it.
-A track whose Objects carry TS source packets, PES packets, or sections MUST
-set `packaging` to "mpeg2ts", and it carries a single ordered stream of either
-TS source packets or the units that `mpeg2tsEsPayload`
-({{mpeg2ts-es-payload}}) names.
-
-The track fields defined in {{track-fields}} apply to a track of either
-packaging.
+A track whose Objects carry TS source packets MUST set the MSF `packaging`
+field to "mpeg2ts". Such a track carries a single ordered stream of source
+packets.
 
 ## Object Payload Format {#object-payload-format}
 
-The Object payload of a track depends on what the track carries. This section
-gives the three forms.
-
-### Source Packets {#payload-source-packets}
-
-On an mpeg2ts track that declares no `mpeg2tsEsPayload`, the payload of each
-MOQT Object is a sequence of whole source packets:
+The payload of each MOQT Object is a sequence of whole source packets:
 
 ~~~ ascii-art
 +===============+===============+=====+===============+
@@ -254,8 +231,8 @@ Object boundaries are packaging boundaries and do not change TS semantics.
 Continuity counters, adaptation fields, PCR, PTS, DTS, PSI, and other TS syntax
 remain inside the source packets.
 
-TS semantics cover a delivery schedule as well as syntax. The PCR values in a
-stream state when each TS byte is meant to reach a decoder. Section 2.4.2 of
+TS semantics cover a delivery schedule as well as syntax. The PCR values give
+the time at which each TS byte is meant to reach the receiver. Section 2.4.2 of
 {{ISO138181}} expresses the buffer constraints of a reference decoder against
 that schedule, {{ISO138189}} gives the tolerance within which a delivered stream
 matches it, and {{TR101290}} defines the limits that a DVB deployment must
@@ -266,33 +243,6 @@ In an unmodified mode ({{mpeg2ts-mode}}), a publisher MUST NOT modify the
 continuity counter of any source packet and MUST NOT remap PIDs.
 {{carriage-modes}} defines the modifications a publisher may make in the other
 modes.
-
-### PES Packets and Sections {#payload-units}
-
-When `mpeg2tsEsPayload` ({{mpeg2ts-es-payload}}) is present, each Object
-carries exactly one unit of the elementary stream or the table that
-`mpeg2tsEsPid` names. A "pes" Object carries one complete PES packet, header
-included, so the PTS, the DTS, and every other PES header field reach the
-subscriber. A "section" Object carries one complete section, header and CRC
-included, which `section_length` delimits.
-
-A subscriber MUST reject an Object that carries more than one unit, or part of
-one. The units carry no continuity counter, no adaptation field, and no PCR,
-and {{es-units-carriage}} states what a subscriber regenerates.
-
-A section carries no PTS, so a "section" Object gives a subscriber no time at
-which to place it in its output. A publisher SHOULD give each "section" Object
-the Timestamp and Timescale properties of {{LOC}}. The timestamp is the time at
-which the first byte of the section enters the decoder, as Section 2.4.2 of
-{{ISO138181}} computes it from the PCR, at a timescale of 90000 and without
-wrapping.
-
-### Media Frames {#payload-frames}
-
-A track whose `packaging` is "loc" carries one media frame per Object, and
-{{LOC}} defines the payload. The fields of {{track-fields}} record where the
-elementary stream sat in the source transport stream, and they change neither
-the payload nor its framing.
 
 ## Group Boundaries {#group-boundaries}
 
@@ -314,20 +264,8 @@ that Group.
 ## Source Handling and Carriage Modes {#carriage-modes}
 
 The required `mpeg2tsMode` field ({{mpeg2ts-mode}}) names what a track carries
-and how the publisher derived it. {{carriage-table}} gives the six values, and
-the sections that follow define each one.
-
-| mpeg2tsMode | packaging | mpeg2tsPacketSize | mpeg2tsEsPid | mpeg2tsEsPayload |
-|:==========|:==========|:==========|:==========|:=========|
-| unmodified-program | mpeg2ts | present | absent | absent |
-| unmodified-multiplex | mpeg2ts | present | absent | absent |
-| per-program | mpeg2ts | present | absent | absent |
-| es-packets | mpeg2ts | present | present | absent |
-| es-units | mpeg2ts | absent | present | present |
-| media-frames | loc | absent | present | absent |
-{: #carriage-table title="Fields that each mode requires"}
-
-A subscriber MUST treat a track that breaks {{carriage-table}} as invalid.
+and how the publisher derived it. The sections that follow define its four
+values.
 
 ### Unmodified Program {#unmodified-program-carriage}
 
@@ -418,8 +356,8 @@ to leave only the entries for the carried program.
 
 When `mpeg2tsEsPid` ({{mpeg2ts-es-pid}}) is present, the track carries a
 single elementary stream or signaling table. The track payload contains only
-the packets or the units of the PID that `mpeg2tsEsPid` identifies, and it MUST
-NOT contain null packets.
+the packets of the PID that `mpeg2tsEsPid` identifies, and it MUST NOT contain
+null packets.
 
 A publisher using ES-level carriage SHOULD publish the program signaling as two
 further tracks, one carrying the PAT and one carrying the PMT of the program
@@ -447,8 +385,7 @@ them at the interval that the standard governing its output requires, for
 example {{TR101290}} for a DVB deployment. When it carries a subset of the
 elementary streams that the PMT lists, it MUST remove the entries for the
 streams it does not carry, correct the CRC of the section, and increment its
-`version_number`. When the tracks carry source packets, it MUST take the PCR
-from the track whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` that those
+`version_number`. It MUST take the PCR from the track whose `mpeg2tsEsPid` equals the `mpeg2tsPcrPid` that those
 tracks declare. The order of the packets within each PID does not give their
 position in the multiplex, so the stream it builds carries neither the byte
 schedule nor the packet layout of the source.
@@ -463,48 +400,6 @@ association between a scrambled elementary stream and the streams that key it.
 A publisher also cannot identify random access points in a payload it cannot
 decrypt, so it cannot set `mpeg2tsRandomAccess` to true. A publisher carrying
 a scrambled source SHOULD use unmodified or per-program carriage.
-
-### ES-Units {#es-units-carriage}
-
-Each Object carries either one PES packet or one section of the PID that
-`mpeg2tsEsPid` names ({{payload-units}}). A publisher sets `mpeg2tsEsPayload`
-({{mpeg2ts-es-payload}}) to "pes" for an elementary stream it did not decode,
-so the PTS, the DTS, and every other PES header field survive without the
-catalog describing them. It sets the field to "section" for a table, including
-the PAT and the PMT that {{es-level-carriage}} recommends.
-
-A track in this mode MUST NOT carry a scrambled elementary stream.
-
-A subscriber that outputs a transport stream from tracks in this mode, or in
-the mode of {{media-frames-carriage}}, synthesizes what those tracks no longer
-carry. It MUST generate the continuity counters, the adaptation fields, and the
-PCR of its output, and it MUST packetize each unit and each media frame onto
-the PID that `mpeg2tsEsPid` records. It MAY use `mpeg2tsMuxRate`
-({{mpeg2ts-mux-rate}}) as the rate to pad toward. The reconstructed stream
-carries neither the byte schedule nor the packet layout of the source, so a
-deployment that needs either one uses an unmodified mode or
-{{per-program-carriage}}.
-
-Because the subscriber generates them, the continuity counters and the PCR of
-its output describe the reconstruction rather than the content. When the
-units of the elementary stream on the PCR PID stop arriving, the subscriber
-continues to emit the PCR on that PID, so its counters stay sequential, the
-PCR stays within its limits, and no Priority 1 indicator of {{TR101290}}
-reports the loss. A subscriber, or a monitor of its output, needs to check the
-presence and the rate of the units of each elementary stream as well as the
-syntax of the output.
-
-### Media Frames {#media-frames-carriage}
-
-The publisher decoded the elementary stream, and each Object carries one media
-frame in an LOC track {{LOC}}, with the timestamp and the decoder configuration
-that LOC and MSF define. The track carries `mpeg2tsEsPid` to record the PID
-that the elementary stream held, and `mpeg2tsProgramNumber` to record the
-program. A subscriber that only plays the media needs nothing else from this
-document.
-
-A track in this mode MUST NOT carry a scrambled elementary stream. A subscriber
-that outputs a transport stream follows {{es-units-carriage}}.
 
 ## PCR and Timing {#pcr-timing}
 
@@ -548,8 +443,7 @@ that this document does not define.
 ## Rebuilt Output {#rebuilt-output}
 
 This section applies to a subscriber that outputs a transport stream from
-tracks in the modes of {{es-level-carriage}}, {{es-units-carriage}}, or
-{{media-frames-carriage}}.
+tracks in the mode of {{es-level-carriage}}.
 
 The subscriber MUST repeat each table that it outputs at the interval that the
 standard governing its output requires, including the service information that
@@ -600,16 +494,13 @@ fields it does not understand.
 ## Track Object Fields {#track-fields}
 
 {{track-fields-table}} lists the mpeg2ts-specific fields defined within a
-track object. A track whose `packaging` is "mpeg2ts" uses them, and a track
-carrying decoded media frames uses `mpeg2tsEsPid`, `mpeg2tsProgramNumber`, and
-`mpeg2tsPcrPid` while its `packaging` is "loc" ({{media-frames-carriage}}).
+track object. A track whose `packaging` is "mpeg2ts" uses them.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
 | Mode                          | mpeg2tsMode               | {{mpeg2ts-mode}} |
 | Packet size                   | mpeg2tsPacketSize         | {{mpeg2ts-packet-size}} |
 | ES PID                        | mpeg2tsEsPid              | {{mpeg2ts-es-pid}} |
-| ES payload                    | mpeg2tsEsPayload          | {{mpeg2ts-es-payload}} |
 | Program number                | mpeg2tsProgramNumber      | {{mpeg2ts-program-number}} |
 | PCR PID                       | mpeg2tsPcrPid             | {{mpeg2ts-pcr-pid}} |
 | Mux rate                      | mpeg2tsMuxRate            | {{mpeg2ts-mux-rate}} |
@@ -627,8 +518,7 @@ described in {{init-data}}.
 Required: Yes JSON Type: String Location: Track Object
 
 What the track carries and how the publisher derived it. The value MUST be one
-of the six names below, and {{carriage-table}} gives the fields that each one
-requires.
+of the four names in {{mode-table}}.
 
 | Value | Meaning |
 |:==========|:=========|
@@ -636,35 +526,30 @@ requires.
 | unmodified-multiplex | Every packet of a multi-program source, unchanged ({{unmodified-multiplex-carriage}}) |
 | per-program | One program that the publisher derived from the source ({{per-program-carriage}}) |
 | es-packets | The TS source packets of one PID ({{es-level-carriage}}) |
-| es-units | The PES packets or the sections of one PID ({{es-units-carriage}}) |
-| media-frames | The decoded frames of one elementary stream ({{media-frames-carriage}}) |
 {: #mode-table title="Values of mpeg2tsMode"}
 
 A subscriber that does not recognize the value MUST reject the track.
 
 ## Packet Size {#mpeg2ts-packet-size}
 
-Required: Conditional JSON Type: Number Location: Track Object
+Required: Yes JSON Type: Number Location: Track Object
 
 The source-packet size in octets. The value MUST be either 188 or 192. A value
 of 188 identifies ordinary MPEG-2 TS packets. A value of 192 identifies M2TS
 source packets with a four-octet timestamp prefix followed by a 188-octet TS
 packet.
 
-{{carriage-table}} gives the modes that require this field.
-
 ## ES PID {#mpeg2ts-es-pid}
 
-Required: Optional JSON Type: Number Location: Track Object
+Required: Conditional JSON Type: Number Location: Track Object
 
 The PID that the single elementary stream or signaling table of this track
-held in the source. When present, the track carries only the packets or the
-units of that PID, and it never carries null packets. The field appears on an
-mpeg2ts track, and on an LOC track carrying decoded media frames
-({{media-frames-carriage}}). A track carrying an elementary stream carries
-neither PAT nor PMT, and a track whose `role` is "pat" or "pmt" carries that
-table alone. The "es-packets", "es-units", and "media-frames" modes require
-this field ({{carriage-table}}).
+held in the source. When present, the track carries only the packets of that
+PID, and it never carries null packets. A track carrying an elementary stream
+carries neither PAT nor PMT, and a track whose `role` is "pat" or "pmt" carries
+that table alone. This field MUST be present in the "es-packets" mode and
+MUST be absent in the other modes. A subscriber MUST reject a track that
+breaks this rule.
 
 When this field is present, `mpeg2tsSiPids` and `mpeg2tsScte35Pid` MUST be
 absent.
@@ -685,20 +570,6 @@ requires. For the Program Association Table, publishers SHOULD set `role` to
 `"pat"` and `mpeg2tsEsPid` to 0x0000. For the Program Map Table of the carried
 program, publishers SHOULD set `role` to `"pmt"` and `mpeg2tsEsPid` to the PID
 that the PAT lists for that program.
-
-## ES Payload {#mpeg2ts-es-payload}
-
-Required: Optional JSON Type: String Location: Track Object
-
-The unit that each Object of an "es-units" track carries. The value MUST be
-either "pes" or "section". {{es-units-carriage}} defines the mode.
-
-{{payload-units}} defines the Object payload for both values.
-
-This field MUST be absent unless `mpeg2tsEsPid` is present. When it is
-present, `mpeg2tsPacketSize` and `mpeg2tsTimestampMode` MUST be absent. A
-subscriber that does not recognize the value MUST reject the track, rather
-than read its Object payload as source packets.
 
 ## Program Number {#mpeg2ts-program-number}
 
@@ -805,15 +676,12 @@ A subscriber obtains the PAT and the PMT in one of four ways: it subscribes to
 the PAT and PMT tracks that {{es-level-carriage}} recommends, it reads the
 tables from `initDataList` when the track declares `initRef`, it accumulates
 packets from the joining point until the publisher repeats the PSI, or it
-fetches a past Object that carries them. Only the first way serves a track
-that carries no source packets, because the other three read the tables out of
-a packet stream.
+fetches a past Object that carries them.
 
 MSF defines the `initRef` track field and the root `initDataList` field. An
 mpeg2ts track MAY use those fields to carry initialization data. The track
 sets `initRef` to the `id` of an `initDataList` entry whose `type` MUST be
-"inline". On a track that carries source packets, the Base64 {{BASE64}} decoded
-value of the entry's `data` field MUST be a sequence of whole source packets
+"inline". The Base64 {{BASE64}} decoded value of the entry's `data` field MUST be a sequence of whole source packets
 using the packet size that `mpeg2tsPacketSize` declares.
 
 Publishers SHOULD include current PAT and PMT packets in the referenced
@@ -1153,83 +1021,6 @@ A subscriber taking the video track and one audio track also takes the PAT and
 PMT tracks, removes the entries of the streams it did not take from the PMT,
 and emits the two tables with the packets of the streams it carries.
 
-## No-Packet Tracks - LOC Media, PES, and Sections {#example-no-packet}
-
-This example shows the same program published without TS source packets. The
-video track uses LOC packaging, the audio track carries complete PES packets
-because the publisher did not decode it, and the Program Map Table travels as
-sections on its own track.
-
-~~~ json
-{
-  "version": "draft-01",
-  "generatedAt": 1746104606044,
-  "tracks": [
-    {
-      "name": "program-1-video",
-      "namespace": "live.example.com/channel/1",
-      "packaging": "loc",
-      "mpeg2tsMode": "media-frames",
-      "isLive": true,
-      "targetLatency": 1000,
-      "role": "video",
-      "codec": "avc1.640028",
-      "mimeType": "video/H264",
-      "bitrate": 5000000,
-      "initRef": "video-config",
-      "mpeg2tsProgramNumber": 1,
-      "mpeg2tsPcrPid": 257,
-      "mpeg2tsEsPid": 257
-    },
-    {
-      "name": "program-1-audio-en",
-      "namespace": "live.example.com/channel/1",
-      "packaging": "mpeg2ts",
-      "mpeg2tsMode": "es-units",
-      "isLive": true,
-      "targetLatency": 1000,
-      "role": "audio",
-      "mimeType": "video/mp2t",
-      "bitrate": 128000,
-      "mpeg2tsProgramNumber": 1,
-      "mpeg2tsPcrPid": 257,
-      "mpeg2tsEsPid": 258,
-      "mpeg2tsEsPayload": "pes"
-    },
-    {
-      "name": "program-1-pat",
-      "namespace": "live.example.com/channel/1",
-      "packaging": "mpeg2ts",
-      "mpeg2tsMode": "es-units",
-      "isLive": true,
-      "role": "pat",
-      "mimeType": "video/mp2t",
-      "mpeg2tsProgramNumber": 1,
-      "mpeg2tsEsPid": 0,
-      "mpeg2tsEsPayload": "section"
-    },
-    {
-      "name": "program-1-pmt",
-      "namespace": "live.example.com/channel/1",
-      "packaging": "mpeg2ts",
-      "mpeg2tsMode": "es-units",
-      "isLive": true,
-      "role": "pmt",
-      "mimeType": "video/mp2t",
-      "mpeg2tsProgramNumber": 1,
-      "mpeg2tsEsPid": 256,
-      "mpeg2tsEsPayload": "section"
-    }
-  ]
-}
-~~~
-
-No track declares `mpeg2tsPacketSize`, because no track carries source
-packets. The video track carries no `mpeg2tsEsPayload`, because that field
-describes an mpeg2ts track. A
-subscriber that only plays the video reads the LOC track and ignores the rest
-of the catalog.
-
 # Switching and Alternate Renditions {#switching}
 
 A publisher advertises multiple mpeg2ts tracks as alternatives using the MSF
@@ -1255,10 +1046,8 @@ decoder.
 Unmodified carriage preserves any scrambling and conditional access
 information present in the MPEG-2 Transport Stream. Per-program carriage
 preserves it when the publisher retains the conditional access packets
-({{per-program-carriage}}). Neither form of ES-level carriage preserves it,
-and neither {{es-units-carriage}} nor {{media-frames-carriage}} can carry a
-scrambled stream at all.
-Transport-stream scrambling is opaque to MOQT relays and to this
+({{per-program-carriage}}). ES-level carriage does not preserve it
+({{es-level-carriage}}). Transport-stream scrambling is opaque to MOQT relays and to this
 specification.
 
 A publisher MAY apply object-level encryption using a mechanism such as Secure
