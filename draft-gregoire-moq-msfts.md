@@ -118,7 +118,7 @@ This document describes version 3 of the MSFTS packaging format.
 # MSF Extension {#msf-extension}
 
 The requirements and terminology of {{MSF}} apply to this extension unless
-this document states otherwise. This document defines the Object payload of an
+this document says otherwise. This document defines the Object payload of an
 mpeg2ts track ({{object-payload-format}}) and the catalog fields that describe
 the track ({{catalog}}).
 
@@ -382,49 +382,47 @@ a scrambled source SHOULD use unmodified or per-program carriage.
 
 ## PCR and Timing {#pcr-timing}
 
-The PCR is carried inside adaptation fields of transport-stream packets as
-defined by {{ISO138181}}. MOQT Object and Group boundaries are packaging
-boundaries and do not alter PCR continuity within a track.
+The PCR travels in the adaptation fields of the TS packets ({{ISO138181}}).
+MOQT Object and Group boundaries do not affect its continuity within a track.
 
 A publisher MUST NOT introduce a PCR discontinuity within a single MOQT Group.
 A publisher that introduces a PCR discontinuity between consecutive MOQT
 Groups MUST signal it by setting the discontinuity_indicator bit
 ({{ISO138181}}, Section 2.4.3.5) in the adaptation field of the first TS
-packet carrying PCR in the new Group. The PCR base field wraps around during
-long-running streams, and a wrap is not a discontinuity: a publisher MUST NOT
-signal one when the PCR base wraps.
-
-A subscriber cannot recover the source mux clock from the rate at which
-packets arrive. MOQT delivers whole Objects, and a relay can serve them from
-its cache as fast as the link allows, so arrival timing carries no information
-about the source. Conformance to the delivery schedule is therefore a property
-of how a subscriber delivers its reconstructed packet stream to a receiver,
-and not of the carriage between publisher and subscriber.
+packet carrying PCR in the new Group. The PCR base wraps every 2^33 ticks of
+its 90 kHz clock, about 26.5 hours. A wrap is not a discontinuity. A publisher
+MUST NOT signal it as one.
 
 ## Egress Timing {#egress-timing}
 
-The PCR values of a reconstructed packet stream describe a delivery schedule.
-The stream meets that schedule only if the subscriber hands each source packet
-to the receiver at the time the schedule states.
+A subscriber cannot recover the source mux clock from the arrival of packets.
+MOQT delivers whole Objects, which a relay can serve from its cache as fast as
+the link allows. The timing of arrivals at the subscriber therefore carries no
+information about the source schedule. The reconstructed stream meets its
+schedule only if the subscriber hands each source packet to the receiver at
+the time that the PCR values give.
 
 A subscriber whose receiver recovers its clock from packet arrival MUST
 deliver the source packets on a schedule consistent with the PCR values they
 carry. That subscriber SHOULD meet the PCR repetition and accuracy limits of
 the standard governing the receiver, given by {{TR101290}} for a DVB
 deployment. Where the receiver expects a constant bit rate, the subscriber
-SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target. A
-stuffing target does not reproduce the source schedule. Arrival times
-({{mpeg2ts-timestamp-mode}}) give the spacing of the packets on the clock that
-stamped them. They carry neither an absolute time nor the point where the
-stamping took place. Reproducing the source schedule at a constant latency
-requires timing information that this document does not define.
+SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target.
+
+Neither a stuffing target nor arrival times reproduce the source schedule. A
+stuffing target gives a nominal rate, from which the source clock can deviate
+by up to 30 ppm ({{ISO138181}}). Arrival times ({{mpeg2ts-timestamp-mode}})
+give the spacing of the packets on the clock that stamped them. They carry no
+absolute time. They do not say where the stamping took place. Reproducing the
+source schedule at a constant latency requires timing information that this
+document does not define.
 
 ## Splice Signaling {#splice-signaling}
 
-An mpeg2ts track carries SCTE-35 {{SCTE35}} splice information in band, as
-splice_info_section() messages on the PID that `mpeg2tsScte35Pid`
-({{mpeg2ts-scte35-pid}}) declares. This document does not specify SCTE-35
-processing.
+SCTE-35 {{SCTE35}} splice information travels in band, as
+splice_info_section() messages on a PID of the program. The `mpeg2tsScte35Pid`
+field ({{mpeg2ts-scte35-pid}}) can declare that PID. This document does not
+specify SCTE-35 processing.
 
 A publisher MAY also publish the same splice events out of band, on an MSF
 Event Timeline track. {{SCTE35Timeline}} defines the event type identifiers
