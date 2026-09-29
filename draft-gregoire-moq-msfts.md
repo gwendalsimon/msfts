@@ -94,11 +94,11 @@ informative:
 
 --- abstract
 
-This document extends the MOQT Streaming Format (MSF) catalog by defining the
-"mpeg2ts" packaging value for carrying MPEG-2 Transport Stream and M2TS source
-packets over MOQT. It defines catalog-extension fields for transport-stream
-track description and specifies subscriber behavior for joining, switching,
-and validating packetized streams.
+This document extends the MOQT Streaming Format (MSF) with the "mpeg2ts"
+packaging, which carries the packets of an MPEG-2 Transport Stream over MOQT.
+It defines the catalog fields that describe such a track, and the rules that a
+subscriber follows to join a track, to switch between tracks, and to rebuild
+the packet stream.
 
 --- middle
 
@@ -106,9 +106,8 @@ and validating packetized streams.
 
 MPEG-2 Transport Stream MOQT Streaming Format (MSFTS) is an extension of the
 MOQT Streaming Format (MSF) {{MSF}} that delivers MPEG-2 Transport Stream (TS)
-{{ISO138181}} content over MOQT {{MOQTransport}}. MSFTS retains the scope,
-capabilities, and features of MSF, including the catalog format, the timeline,
-and alternate rendition switching.
+{{ISO138181}} content over MOQT {{MOQTransport}}. MSFTS keeps the catalog, the
+timelines, and the alternate rendition switching of MSF.
 
 An MSFTS track carries whole TS source packets, either 188 or 192 octets
 each. It serves a subscriber that feeds equipment expecting a transport
@@ -118,12 +117,10 @@ This document describes version 3 of the MSFTS packaging format.
 
 # MSF Extension {#msf-extension}
 
-All specifications, requirements, and terminology defined in {{MSF}} apply to
-implementations of this extension unless explicitly noted otherwise in this
-document.
-
-This document defines the Object payload of an mpeg2ts track
-({{object-payload-format}}).
+The requirements and terminology of {{MSF}} apply to this extension unless
+this document states otherwise. This document defines the Object payload of an
+mpeg2ts track ({{object-payload-format}}) and the catalog fields that describe
+the track ({{catalog}}).
 
 This document uses two unrelated version numbers. The catalog `version` field
 carries the MSF revision. The MSFTS format version given in {{introduction}}
@@ -140,14 +137,14 @@ Conditional Access Table (CAT), Program Clock Reference (PCR), Packetized
 Elementary Stream (PES), Program Specific Information (PSI), Presentation Time
 Stamp (PTS), and Decoding Time Stamp (DTS).
 
-The following terms are used throughout this document:
+This document uses the following terms:
 
 TS packet:
 : A 188-octet MPEG-2 Transport Stream packet as defined by {{ISO138181}}.
 
 M2TS source packet:
-: A 192-octet packet consisting of a four-octet source-packet timestamp
-  followed by a 188-octet TS packet.
+: A 192-octet packet made of a four-octet prefix and a 188-octet TS packet.
+  {{mpeg2ts-timestamp-mode}} defines the prefix.
 
 Source packet:
 : Either a TS packet or an M2TS source packet. The catalog signals which of
@@ -160,9 +157,8 @@ Subscriber:
 
 Receiver:
 : The equipment that consumes the reconstructed packet stream, for example an
-  IRD. A receiver operates on source packets and
-  needs no knowledge of MOQT. One implementation can act as both a subscriber
-  and a receiver.
+  IRD. A receiver operates on source packets and needs no knowledge of MOQT.
+  One implementation can act as both a subscriber and a receiver.
 
 Random access point:
 : A point in the packet stream at which a receiver can begin decoding after
@@ -176,21 +172,20 @@ Multi-program transport stream (MPTS):
 
 # Scope
 
-The purpose of MSFTS is to carry an MPEG-2 Transport Stream over
-{{MOQTransport}} without changing the transport stream itself.
-Interoperability implies that:
+MSFTS carries an MPEG-2 Transport Stream over {{MOQTransport}} as TS packets,
+either unchanged or filtered by the publisher. Interoperability requires three
+properties:
 
 * An original publisher can map an incoming transport stream into MOQT Objects
   and Groups, describe it in an MSF catalog, and announce it to an MOQT relay.
 * An MOQT relay can cache and propagate the tracks without parsing the
   transport stream.
-* A final subscriber can parse the catalog, subscribe to the tracks it needs,
-  reconstruct the packet stream, and pass it to a transport-stream decoder.
+* An end subscriber can parse the catalog, subscribe to the tracks it needs,
+  reconstruct the packet stream, and pass it to a receiver.
 
-A subscriber needs to know how the publisher produced each track: the unit
-that its Objects carry, how the publisher derived the track, which
-program or elementary stream the track carries, and where the timing reference
-lives. MSFTS defines the catalog signaling that carries those decisions from
+A subscriber needs to know how the publisher produced each track: the size of
+its packets, how the publisher derived the track, which program or elementary
+stream it carries, and which track carries the PCR. MSFTS defines the catalog signaling that carries those decisions from
 the publisher to the subscriber.
 
 Demultiplexed carriage, where each elementary stream travels without its TS
