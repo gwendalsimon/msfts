@@ -131,11 +131,11 @@ catalog conforming to this document MUST set `version` as {{MSF}} requires.
 
 {::boilerplate bcp14-tagged}
 
-This document uses the following abbreviations from {{ISO138181}}: Packet
-Identifier (PID), Program Association Table (PAT), Program Map Table (PMT),
-Conditional Access Table (CAT), Program Clock Reference (PCR), Packetized
-Elementary Stream (PES), Program Specific Information (PSI), Presentation Time
-Stamp (PTS), and Decoding Time Stamp (DTS).
+This document uses the following abbreviations from {{ISO138181}}: Elementary
+Stream (ES), Packet Identifier (PID), Program Association Table (PAT), Program
+Map Table (PMT), Conditional Access Table (CAT), Program Clock Reference (PCR),
+Program Specific Information (PSI), Presentation Time Stamp (PTS), and
+Decoding Time Stamp (DTS).
 
 This document uses the following terms:
 
@@ -164,10 +164,10 @@ Random access point:
 : A point in the packet stream at which a receiver can begin decoding after
   receiving the PAT, the PMT, and the decoder initialization.
 
-Single-program transport stream (SPTS):
+Single-program transport stream:
 : A transport stream whose PAT lists exactly one program.
 
-Multi-program transport stream (MPTS):
+Multi-program transport stream:
 : A transport stream whose PAT lists two or more programs.
 
 # Scope
@@ -227,7 +227,8 @@ Object boundaries also leave the delivery schedule of the stream unchanged. The
 PCR values give the time at which each TS byte is meant to reach the receiver.
 Section 2.4.2 of {{ISO138181}} expresses the buffer constraints of a reference
 decoder against that schedule. {{ISO138189}} gives the tolerance within which a
-delivered stream matches it. {{TR101290}} defines the limits that a DVB
+delivered stream matches it. {{TR101290}} defines the limits that a Digital
+Video Broadcasting (DVB)
 deployment must meet. {{pcr-timing}} covers how MOQT delivery relates to the
 schedule.
 
@@ -318,7 +319,7 @@ the publisher retains them. A track without SI has no service identity, no
 event schedule, and no broadcast time. A publisher targeting broadcast or IRD
 reception SHOULD retain the SI tables that the target standard requires.
 
-Digital Video Broadcasting (DVB) and the Advanced Television Systems Committee
+DVB and the Advanced Television Systems Committee
 (ATSC) define different SI tables and place them on different PIDs. {{DVBSI}}
 specifies the DVB tables, and {{ATSCPSIP}} specifies the ATSC ones.
 
@@ -359,7 +360,7 @@ It MUST emit both tables before the first packet of any elementary stream that
 they describe, and it MUST repeat them at the interval that the standard
 governing its output requires, for example {{TR101290}} for a DVB deployment.
 When it carries a subset of the elementary streams that the PMT lists, it MUST
-remove the entries for the streams it does not carry, correct the CRC of the
+remove the entries for the streams it does not carry, correct the CRC_32 field of the
 section, and increment its `version_number`. It MUST subscribe to the track
 that carries the PCR and take the PCR from it.
 
