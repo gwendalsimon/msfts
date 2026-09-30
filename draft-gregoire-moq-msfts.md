@@ -81,8 +81,7 @@ informative:
 This document extends the MOQT Streaming Format (MSF) with the "mpeg2ts"
 packaging, which carries the packets of an MPEG-2 Transport Stream over MOQT.
 It defines the catalog fields that describe such a track, and the rules that a
-subscriber follows to join a track, to switch between tracks, and to rebuild
-the packet stream.
+publisher and a subscriber follow to carry the packet stream.
 
 --- middle
 
@@ -197,10 +196,12 @@ contain only whole source packets, so its length is always a multiple of
 `mpeg2tsPacketSize`. A subscriber MUST reject an Object that breaks this rule.
 
 A subscriber reconstructs the packet stream by concatenating the source
-packets from received Objects in ascending Group ID and Object ID order. A
-subscriber that skips or fails to receive an Object MUST consider the
-reconstructed packet stream discontinuous at that point until it reaches a
-subsequent random access point.
+packets from received Objects in ascending Group ID and Object ID order. When
+a subscriber skips or does not receive an Object, the reconstructed packet
+stream has a gap. The continuity counters of the source packets after the gap
+show the loss to the receiver, which resumes decoding at the next random
+access point. A subscriber MUST NOT change the continuity counters to hide the
+gap.
 
 Object boundaries are packaging boundaries. Continuity counters, adaptation
 fields, PCR, PTS, DTS, PSI, and other TS syntax remain inside the source
@@ -217,16 +218,24 @@ delivery relates to the schedule.
 ## Group Boundaries {#group-boundaries}
 
 On a live single-program track, a publisher SHOULD start each MOQT Group at a
-random access point. The Group then includes the PAT and the PMT that a
-receiver needs to demultiplex the program.
+random access point.
 
 For a track carrying a whole multiplex, Group boundary placement depends on
 whether the publisher can identify random access points across the multiplex.
 A publisher that can identify them MAY align Group boundaries to those points.
 
 When `mpeg2tsRandomAccess` ({{mpeg2ts-random-access}}) is true, the first
-Object in every Group MUST provide a valid random access starting point for
-that Group.
+Object of every Group contains the first TS packet of a random access point.
+The Group SHOULD carry the PAT and the PMT. A publisher SHOULD also provide
+the PAT and the PMT in the catalog ({{init-data}}), so that a joining
+subscriber can pass them to the receiver before the first Object.
+
+## Joining a Track {#joining}
+
+A subscriber that joins a live track SHOULD start at the beginning of a Group.
+When `mpeg2tsRandomAccess` is true, the first Object of that Group contains a
+random access point. The subscriber obtains the PAT and the PMT as
+{{init-data}} describes.
 
 ## Source Handling and Carriage Modes {#carriage-modes}
 
@@ -253,6 +262,8 @@ reach the subscriber unaltered within one PSI repetition cycle.
 The publisher forwards every source packet of a multi-program transport stream
 under the rules of {{unmodified-program-carriage}}. Because the publisher
 selects no program, `mpeg2tsProgramNumber` and `mpeg2tsPcrPid` MUST be absent.
+A publisher MUST NOT use this mode when the PAT of the source lists one
+program.
 
 ### Per-Program {#per-program-carriage}
 
@@ -546,8 +557,8 @@ This field MUST be absent when `mpeg2tsEsPid` is present, and in the
 
 Required: Optional JSON Type: Boolean Location: Track Object
 
-When true, every MOQT Group starts with a random access point, as defined in
-{{group-boundaries}}. When absent or false, this document makes no guarantee
+When true, the first Object of every MOQT Group contains a random access point
+({{group-boundaries}}). When absent or false, this document makes no guarantee
 about where in a Group decoding can begin.
 
 ## Timestamp Mode {#mpeg2ts-timestamp-mode}
@@ -566,6 +577,9 @@ approximately 39.77 seconds.
 
 The value "opaque" indicates that the publisher carries the prefix without
 specified semantics.
+
+A subscriber that feeds a receiver expecting 188-octet TS packets MUST remove
+the prefix of each source packet.
 
 ## SCTE-35 PID {#mpeg2ts-scte35-pid}
 
@@ -604,9 +618,11 @@ Subscribers MUST NOT assume that referenced initialization data remains valid
 after the MPEG-2 PSI `version_number` changes. Updated PSI in the Objects
 takes precedence.
 
-A publisher using an unmodified mode ({{unmodified-program-carriage}})
-typically omits `initRef`, because it does not inspect the source stream and
-the PSI reaches the subscriber unchanged.
+A publisher SHOULD provide `initRef` when `mpeg2tsRandomAccess` is true
+({{group-boundaries}}). A subscriber that passes the PAT and the PMT from the
+catalog to the receiver SHOULD set the continuity counter of each of these
+packets to one less than the continuity counter of the next packet on the same
+PID. The receiver then counts no continuity error at the join.
 
 On an ES-level track, an `initDataList` entry gives a joining subscriber the
 tables at once. The PAT and PMT tracks remain the authoritative source
