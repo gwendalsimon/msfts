@@ -73,22 +73,6 @@ informative:
       ETSI TR: 101 290 V1.4.1
     date: 2020-06
   SCTE35Timeline: I-D.draft-wilaw-moq-scte35-event-timeline
-  DVBSI:
-    title: "Digital Video Broadcasting (DVB); Specification for Service
-            Information (SI) in DVB systems"
-    author:
-      org: European Telecommunications Standards Institute
-    seriesinfo:
-      ETSI EN: 300 468 V1.19.1
-    date: 2025-02
-  ATSCPSIP:
-    title: "ATSC Standard: Program and System Information Protocol for
-            Terrestrial Broadcast and Cable"
-    author:
-      org: Advanced Television Systems Committee
-    seriesinfo:
-      ATSC: A/65:2013
-    date: 2013
   SecureObjects: I-D.draft-ietf-moq-secure-objects
   MOQMPEGTS: I-D.draft-lcurley-moq-mpegts
 
@@ -155,10 +139,9 @@ Subscriber:
   defined by {{MOQTransport}}. A subscriber operates on MOQT Objects and
   produces the reconstructed packet stream.
 
-Receiver:
-: The equipment that consumes the reconstructed packet stream, for example an
-  IRD. A receiver operates on source packets and needs no knowledge of MOQT.
-  One implementation can act as both a subscriber and a receiver.
+Receiver: : The equipment that consumes the reconstructed packet stream, for
+example an IRD. A receiver operates on source packets and needs no knowledge
+of MOQT.
 
 Random access point:
 : A point in the packet stream at which a receiver can begin decoding after
@@ -223,13 +206,13 @@ Object boundaries are packaging boundaries. Continuity counters, adaptation
 fields, PCR, PTS, DTS, PSI, and other TS syntax remain inside the source
 packets.
 
-Object boundaries also leave the delivery schedule of the stream unchanged.
-The PCR values give the time at which each TS byte is meant to reach the
-receiver. Section 2.4.2 of {{ISO138181}} expresses the buffer constraints of a
-reference decoder against that schedule. {{ISO138189}} gives the tolerance
-within which a delivered stream matches it. {{TR101290}} defines the limits
-that a Digital Video Broadcasting (DVB) deployment must meet. {{pcr-timing}}
-covers how MOQT delivery relates to the schedule.
+Object boundaries leave the delivery schedule of the stream unchanged. The PCR
+values give the time at which each TS byte is meant to reach the receiver.
+Section 2.4.2 of {{ISO138181}} expresses the buffer constraints of a reference
+decoder against that schedule. {{ISO138189}} gives the tolerance within which
+a delivered stream matches it. {{TR101290}} defines the limits that a Digital
+Video Broadcasting (DVB) deployment must meet. {{pcr-timing}} covers how MOQT
+delivery relates to the schedule.
 
 ## Group Boundaries {#group-boundaries}
 
@@ -239,8 +222,7 @@ receiver needs to demultiplex the program.
 
 For a track carrying a whole multiplex, Group boundary placement depends on
 whether the publisher can identify random access points across the multiplex.
-A publisher that can identify them MAY align Group boundaries to those points
-and set `mpeg2tsRandomAccess` to true.
+A publisher that can identify them MAY align Group boundaries to those points.
 
 When `mpeg2tsRandomAccess` ({{mpeg2ts-random-access}}) is true, the first
 Object in every Group MUST provide a valid random access starting point for
@@ -255,10 +237,10 @@ values.
 ### Unmodified Program {#unmodified-program-carriage}
 
 The publisher MUST forward the source packets of a single-program transport
-stream without modification. It MUST NOT select a program, remap a PID,
+stream without modification. A subscriber can then reconstruct the source
+stream byte-for-byte. The publisher MUST NOT select a program, remap a PID,
 rewrite the PAT or the PMT, change a continuity counter, or insert or remove a
-null packet. A subscriber can then reconstruct the source stream
-byte-for-byte.
+null packet.
 
 A publisher SHOULD verify that its pipeline preserves every source packet
 before it declares this mode.
@@ -282,18 +264,14 @@ packets.
 A publisher deriving a per-program track SHOULD drop every source packet
 except:
 
-* PAT packets (PID 0x0000), rewritten to list only the program present in
-  this track.
-* PMT packets for the selected program, on the PID that the rewritten PAT
-  lists.
-* Packets on any PID that the selected program's PMT lists, including the PCR
-  PID, the PIDs of all elementary streams, and the PIDs that any
-  CA_descriptor references.
-* Packets carrying the service information (SI) tables that the publisher
-  retains, if any.
-* Conditional access packets, including the CAT on PID 0x0001, which no PMT
-  lists.
-* Null packets (PID 0x1FFF), which the publisher MAY drop or retain.
+* PAT packets (PID 0x0000), rewritten to list only the program present in this
+  track. * PMT packets for the selected program, on the PID that the rewritten
+  PAT lists. * Packets on any PID that the selected program's PMT lists,
+  including the PCR PID, the PIDs of all elementary streams, and the PIDs that
+  any CA_descriptor references. * Packets carrying the service information
+  (SI) tables that the publisher retains, if any. * Conditional access
+  packets, including the CAT on PID 0x0001. * Null packets (PID 0x1FFF), which
+  the publisher MAY drop or retain.
 
 A publisher that rewrites the PAT and the PMT SHOULD emit them at least as
 often as the source stream did.
@@ -314,22 +292,11 @@ to reconstruct a constant-bit-rate output stream cannot derive the original
 rate from the stream alone. The publisher declares that rate in
 `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}).
 
-No PMT lists the PIDs of the SI tables, so the filter above drops them unless
-the publisher retains them. A track without SI has no service identity, no
-event schedule, and no broadcast time. A publisher targeting broadcast or IRD
-reception SHOULD retain the SI tables that the target standard requires.
-
-DVB and the Advanced Television Systems Committee (ATSC) define different SI
-tables and place them on different PIDs. {{DVBSI}} specifies the DVB tables,
-and {{ATSCPSIP}} specifies the ATSC ones.
-
-A publisher that retains SI tables SHOULD list their PIDs in `mpeg2tsSiPids`
-({{mpeg2ts-si-pids}}), so that a subscriber knows which tables are present
-without parsing the packet stream.
-
-SI tables that describe individual services carry entries for every program in
-a multiplex, so a publisher deriving a per-program track SHOULD rewrite them
-to leave only the entries for the carried program.
+A track without SI has no service identity, no event schedule, and no
+broadcast time. A publisher targeting broadcast or IRD reception SHOULD retain
+the SI tables that the target standard requires. A publisher that retains SI
+tables SHOULD list their PIDs in `mpeg2tsSiPids` ({{mpeg2ts-si-pids}}) and
+SHOULD rewrite them to leave only the entries for the carried program.
 
 ### ES-Packets {#es-level-carriage}
 
@@ -347,13 +314,6 @@ When `mpeg2tsPcrPid` equals `mpeg2tsEsPid`, the track carries the PCR of the
 program. Otherwise another track carries it, and {{pcr-timing}} applies to
 that track.
 
-A publisher producing multiple ES-level media tracks for the same program
-SHOULD align Group boundaries across those tracks so that matching Group
-numbers correspond to the same presentation position. Elementary streams have
-different frame durations, so exact alignment is not always possible. The
-recommendation does not apply to a track carrying a table, which has no
-presentation position.
-
 A subscriber that combines ES-level tracks and outputs a TS MUST subscribe to
 the PAT track and to the PMT track of the program when the catalog offers
 them. It MUST emit both tables before the first packet of any elementary
@@ -366,9 +326,7 @@ subscribe to the track that carries the PCR and take the PCR from it.
 
 The order of the packets within each PID does not give their position in the
 multiplex. Only arrival times ({{mpeg2ts-timestamp-mode}}) stamped on one
-clock across all the tracks of a program give that position. Without them, the
-stream that a subscriber builds does not carry the packet layout of the
-source.
+clock across all the tracks of a program give that position.
 
 A subscriber that finds no PAT track and no PMT track cannot produce a
 conformant PMT, because the catalog carries no stream type for an elementary
@@ -397,8 +355,8 @@ MUST NOT signal it as one.
 ## Egress Timing {#egress-timing}
 
 A subscriber cannot recover the source mux clock from the arrival of packets.
-MOQT delivers whole Objects, which a relay can serve from its cache as fast as
-the link allows. The timing of arrivals at the subscriber therefore carries no
+MOQT delivers whole Objects, which a relay can serve as fast as the link
+allows. The timing of arrivals at the subscriber therefore carries no
 information about the source schedule. The reconstructed stream meets its
 schedule only if the subscriber hands each source packet to the receiver at
 the time that the PCR values give.
@@ -541,8 +499,7 @@ prefix of an M2TS source packet.
 A publisher SHOULD declare this field when it removes null packets, and on
 ES-level tracks, which carry no null packets at all. Where a program is
 published as several ES-level tracks, every track of that program SHOULD
-declare the same value, which describes the reconstructed program and not any
-single track.
+declare the same value, which describes the reconstructed program.
 
 The declared rate is a stuffing target ({{egress-timing}}). A subscriber
 recovers its clock from the PCR values and uses the rate to decide how much
@@ -696,33 +653,6 @@ four-octet prefix `mpeg2tsTimestampMode` interprets.
 }
 ~~~
 
-## Video-on-Demand Transport Stream {#example-vod}
-
-This example shows a stored transport stream forwarded unchanged, with
-`isLive` false and a track duration.
-
-~~~ json
-{
-  "version": "draft-01",
-  "tracks": [
-    {
-      "name": "asset-main",
-      "namespace": "vod.example.com/assets/1000",
-      "packaging": "mpeg2ts",
-      "mpeg2tsMode": "unmodified-program",
-      "isLive": false,
-      "trackDuration": 632000,
-      "role": "video",
-      "mimeType": "video/mp2t",
-      "bitrate": 4500000,
-      "mpeg2tsPacketSize": 188,
-      "mpeg2tsProgramNumber": 1,
-      "mpeg2tsRandomAccess": true
-    }
-  ]
-}
-~~~
-
 ## Multi-Program Source - Per-Program Tracks {#example-mpts}
 
 This example shows a catalog for a publisher that receives a two-program
@@ -770,6 +700,44 @@ tracks share a namespace.
 }
 ~~~
 
+## Per-Program Track with Initialization Data {#example-init-data}
+
+This example shows a per-program track whose PAT and PMT also travel in the
+catalog, so a joining subscriber has the tables before the first Object
+arrives ({{init-data}}). The `data` value holds one PAT packet and one PMT
+packet, 376 octets in total. The example shortens its Base64 encoding.
+
+~~~ json
+{
+  "version": "draft-01",
+  "generatedAt": 1746104606044,
+  "tracks": [
+    {
+      "name": "program-1",
+      "namespace": "live.example.com/channel/1",
+      "packaging": "mpeg2ts",
+      "mpeg2tsMode": "per-program",
+      "isLive": true,
+      "targetLatency": 1000,
+      "role": "video",
+      "mimeType": "video/mp2t",
+      "bitrate": 6000000,
+      "initRef": "program-1-psi",
+      "mpeg2tsPacketSize": 188,
+      "mpeg2tsProgramNumber": 1,
+      "mpeg2tsPcrPid": 257
+    }
+  ],
+  "initDataList": [
+    {
+      "id": "program-1-psi",
+      "type": "inline",
+      "data": "R0AAEAAAsA0AAcEAAAAB4QDo+V59////..."
+    }
+  ]
+}
+~~~
+
 ## Unmodified Multiplex {#example-mpts-transparent}
 
 This example shows a catalog for a publisher that carries a complete
@@ -800,9 +768,9 @@ catalog fields are present.
 
 This example shows a catalog for a live channel published at two bitrates as
 alternate renditions. Both tracks are in the same `altGroup`, so they align
-their Group boundaries ({{switching}}). The tracks use different PID
-assignments, so a subscriber that switches between them signals the new PAT
-and PMT to its receiver ({{switching}}).
+their Group boundaries. The two tracks carry the PCR on different PIDs (257
+and 513), so their PMTs differ. A subscriber that switches between them
+follows {{switching}}.
 
 ~~~ json
 {
@@ -850,9 +818,7 @@ and PMT to its receiver ({{switching}}).
 This example shows a live program published as separate ES-packets tracks: one
 video track carrying the PCR, two audio tracks for different languages
 (English and Spanish), one Event Information Table track, and the PAT and PMT
-tracks that carry the program signaling. The video and audio tracks align
-their Group boundaries on the same presentation positions
-({{es-level-carriage}}).
+tracks that carry the program signaling.
 
 ~~~ json
 {
@@ -986,7 +952,7 @@ preserves it when the publisher retains the conditional access packets
 ({{es-level-carriage}}). TS-level scrambling is opaque to MOQT relays and to
 this specification.
 
-A publisher MAY also encrypt the Object payloads, for example with Secure
+A publisher MAY encrypt the Object payloads, for example with Secure
 Objects {{SecureObjects}}. A subscriber validates the source packets after it
 decrypts the payload.
 
