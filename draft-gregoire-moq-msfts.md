@@ -133,8 +133,8 @@ catalog conforming to this document MUST set `version` as {{MSF}} requires.
 
 This document uses the following abbreviations from {{ISO138181}}: Elementary
 Stream (ES), Packet Identifier (PID), Program Association Table (PAT), Program
-Map Table (PMT), Conditional Access Table (CAT), Program Clock Reference (PCR),
-Program Specific Information (PSI), Presentation Time Stamp (PTS), and
+Map Table (PMT), Conditional Access Table (CAT), Program Clock Reference
+(PCR), Program Specific Information (PSI), Presentation Time Stamp (PTS), and
 Decoding Time Stamp (DTS).
 
 This document uses the following terms:
@@ -185,8 +185,8 @@ properties:
 
 A subscriber needs to know how the publisher produced each track: the size of
 its packets, how the publisher derived the track, which program or elementary
-stream it carries, and which track carries the PCR. MSFTS defines the catalog signaling that carries those decisions from
-the publisher to the subscriber.
+stream it carries, and which track carries the PCR. MSFTS defines the catalog
+signaling that carries those decisions from the publisher to the subscriber.
 
 Demultiplexed carriage, where each elementary stream travels without its TS
 packets, is out of scope. {{MOQMPEGTS}} addresses it.
@@ -223,14 +223,13 @@ Object boundaries are packaging boundaries. Continuity counters, adaptation
 fields, PCR, PTS, DTS, PSI, and other TS syntax remain inside the source
 packets.
 
-Object boundaries also leave the delivery schedule of the stream unchanged. The
-PCR values give the time at which each TS byte is meant to reach the receiver.
-Section 2.4.2 of {{ISO138181}} expresses the buffer constraints of a reference
-decoder against that schedule. {{ISO138189}} gives the tolerance within which a
-delivered stream matches it. {{TR101290}} defines the limits that a Digital
-Video Broadcasting (DVB)
-deployment must meet. {{pcr-timing}} covers how MOQT delivery relates to the
-schedule.
+Object boundaries also leave the delivery schedule of the stream unchanged.
+The PCR values give the time at which each TS byte is meant to reach the
+receiver. Section 2.4.2 of {{ISO138181}} expresses the buffer constraints of a
+reference decoder against that schedule. {{ISO138189}} gives the tolerance
+within which a delivered stream matches it. {{TR101290}} defines the limits
+that a Digital Video Broadcasting (DVB) deployment must meet. {{pcr-timing}}
+covers how MOQT delivery relates to the schedule.
 
 ## Group Boundaries {#group-boundaries}
 
@@ -258,7 +257,8 @@ values.
 The publisher MUST forward the source packets of a single-program transport
 stream without modification. It MUST NOT select a program, remap a PID,
 rewrite the PAT or the PMT, change a continuity counter, or insert or remove a
-null packet. A subscriber can then reconstruct the source stream byte-for-byte.
+null packet. A subscriber can then reconstruct the source stream
+byte-for-byte.
 
 A publisher SHOULD verify that its pipeline preserves every source packet
 before it declares this mode.
@@ -269,8 +269,8 @@ reach the subscriber unaltered within one PSI repetition cycle.
 ### Unmodified Multiplex {#unmodified-multiplex-carriage}
 
 The publisher forwards every source packet of a multi-program transport stream
-under the rules of {{unmodified-program-carriage}}. Because the publisher selects no program, `mpeg2tsProgramNumber` and
-`mpeg2tsPcrPid` MUST be absent.
+under the rules of {{unmodified-program-carriage}}. Because the publisher
+selects no program, `mpeg2tsProgramNumber` and `mpeg2tsPcrPid` MUST be absent.
 
 ### Per-Program {#per-program-carriage}
 
@@ -319,9 +319,9 @@ the publisher retains them. A track without SI has no service identity, no
 event schedule, and no broadcast time. A publisher targeting broadcast or IRD
 reception SHOULD retain the SI tables that the target standard requires.
 
-DVB and the Advanced Television Systems Committee
-(ATSC) define different SI tables and place them on different PIDs. {{DVBSI}}
-specifies the DVB tables, and {{ATSCPSIP}} specifies the ATSC ones.
+DVB and the Advanced Television Systems Committee (ATSC) define different SI
+tables and place them on different PIDs. {{DVBSI}} specifies the DVB tables,
+and {{ATSCPSIP}} specifies the ATSC ones.
 
 A publisher that retains SI tables SHOULD list their PIDs in `mpeg2tsSiPids`
 ({{mpeg2ts-si-pids}}), so that a subscriber knows which tables are present
@@ -337,15 +337,15 @@ In this mode, the track carries one elementary stream or one signaling table,
 on the PID that `mpeg2tsEsPid` ({{mpeg2ts-es-pid}}) identifies. The track MUST
 NOT contain null packets.
 
-A publisher using ES-level carriage SHOULD publish the program signaling as two
-further tracks, one carrying the PAT and one carrying the PMT of the program
-({{mpeg2ts-es-pid}}). The tables then reach a subscriber as the publisher
-produced them, with their descriptors and their stream types intact. The
-publisher SHOULD rewrite the PAT to list only the program that it carries.
+A publisher using ES-level carriage SHOULD publish the program signaling as
+two further tracks, one carrying the PAT and one carrying the PMT of the
+program ({{mpeg2ts-es-pid}}). The tables then reach a subscriber as the
+publisher produced them, with their descriptors and their stream types intact.
+The publisher SHOULD rewrite the PAT to list only the program that it carries.
 
 When `mpeg2tsPcrPid` equals `mpeg2tsEsPid`, the track carries the PCR of the
-program. Otherwise another track carries it, and {{pcr-timing}} applies to that
-track.
+program. Otherwise another track carries it, and {{pcr-timing}} applies to
+that track.
 
 A publisher producing multiple ES-level media tracks for the same program
 SHOULD align Group boundaries across those tracks so that matching Group
@@ -355,18 +355,18 @@ recommendation does not apply to a track carrying a table, which has no
 presentation position.
 
 A subscriber that combines ES-level tracks and outputs a TS MUST subscribe to
-the PAT track and to the PMT track of the program when the catalog offers them.
-It MUST emit both tables before the first packet of any elementary stream that
-they describe, and it MUST repeat them at the interval that the standard
-governing its output requires, for example {{TR101290}} for a DVB deployment.
-When it carries a subset of the elementary streams that the PMT lists, it MUST
-remove the entries for the streams it does not carry, correct the CRC_32 field of the
-section, and increment its `version_number`. It MUST subscribe to the track
-that carries the PCR and take the PCR from it.
+the PAT track and to the PMT track of the program when the catalog offers
+them. It MUST emit both tables before the first packet of any elementary
+stream that they describe, and it MUST repeat them at the interval that the
+standard governing its output requires, for example {{TR101290}} for a DVB
+deployment. When it carries a subset of the elementary streams that the PMT
+lists, it MUST remove the entries for the streams it does not carry, correct
+the CRC_32 field of the section, and increment its `version_number`. It MUST
+subscribe to the track that carries the PCR and take the PCR from it.
 
 The order of the packets within each PID does not give their position in the
-multiplex. Only arrival times ({{mpeg2ts-timestamp-mode}}) stamped on one clock
-across all the tracks of a program give that position. Without them, the
+multiplex. Only arrival times ({{mpeg2ts-timestamp-mode}}) stamped on one
+clock across all the tracks of a program give that position. Without them, the
 stream that a subscriber builds does not carry the packet layout of the
 source.
 
@@ -440,8 +440,8 @@ not understand.
 
 ## Track Object Fields {#track-fields}
 
-{{track-fields-table}} lists the track object fields that this document defines
-for an mpeg2ts track.
+{{track-fields-table}} lists the track object fields that this document
+defines for an mpeg2ts track.
 
 | Field                         | Name                    | Definition |
 |:==============================|:========================|:===========|
@@ -555,8 +555,8 @@ This field MUST be absent in the "unmodified-multiplex" mode.
 Required: Optional JSON Type: Array Location: Track Object
 
 An array of the PIDs that carry the SI tables that a per-program track retains
-({{per-program-carriage}}), each PID listed once. The array does not repeat the
-PIDs that the PMT lists.
+({{per-program-carriage}}), each PID listed once. The array does not repeat
+the PIDs that the PMT lists.
 
 The field is advisory. A subscriber MAY use it to learn which tables are
 present without parsing the packet stream.
@@ -595,12 +595,13 @@ specified semantics.
 Required: Optional JSON Type: Number Location: Track Object
 
 The PID carrying SCTE-35 splice_info_section() messages for this track. This
-field is advisory. SCTE-35 messages are also discoverable from the PMT. When present, a subscriber MAY
-use this value to locate splice events without parsing the PMT. Publishers
-SHOULD include this field when the track carries SCTE-35 splice signaling.
-This field MUST be absent when `mpeg2tsEsPid` is present, and in the
-"unmodified-multiplex" mode. When SCTE-35 travels as an ES-level track, the
-`mpeg2tsEsPid` and `role` fields of that track identify it.
+field is advisory. SCTE-35 messages are also discoverable from the PMT. When
+present, a subscriber MAY use this value to locate splice events without
+parsing the PMT. Publishers SHOULD include this field when the track carries
+SCTE-35 splice signaling. This field MUST be absent when `mpeg2tsEsPid` is
+present, and in the "unmodified-multiplex" mode. When SCTE-35 travels as an
+ES-level track, the `mpeg2tsEsPid` and `role` fields of that track identify
+it.
 
 ## Use of MSF Initialization Data {#init-data}
 
@@ -623,8 +624,8 @@ the first Object of each Group. When PSI changes within a live track, the
 publisher SHOULD publish an updated initialization data entry in a new
 independent catalog before publishing Objects that rely on the changed PSI.
 Subscribers MUST NOT assume that referenced initialization data remains valid
-after the MPEG-2 PSI `version_number` changes. Updated PSI in the Objects takes
-precedence.
+after the MPEG-2 PSI `version_number` changes. Updated PSI in the Objects
+takes precedence.
 
 A publisher using an unmodified mode ({{unmodified-program-carriage}})
 typically omits `initRef`, because it does not inspect the source stream and
@@ -800,8 +801,8 @@ catalog fields are present.
 This example shows a catalog for a live channel published at two bitrates as
 alternate renditions. Both tracks are in the same `altGroup`, so they align
 their Group boundaries ({{switching}}). The tracks use different PID
-assignments, so a subscriber that switches between them signals the new PAT and
-PMT to its receiver ({{switching}}).
+assignments, so a subscriber that switches between them signals the new PAT
+and PMT to its receiver ({{switching}}).
 
 ~~~ json
 {
