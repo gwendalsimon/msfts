@@ -264,14 +264,17 @@ packets.
 A publisher deriving a per-program track SHOULD drop every source packet
 except:
 
-* PAT packets (PID 0x0000), rewritten to list only the program present in this
-  track. * PMT packets for the selected program, on the PID that the rewritten
-  PAT lists. * Packets on any PID that the selected program's PMT lists,
-  including the PCR PID, the PIDs of all elementary streams, and the PIDs that
-  any CA_descriptor references. * Packets carrying the service information
-  (SI) tables that the publisher retains, if any. * Conditional access
-  packets, including the CAT on PID 0x0001. * Null packets (PID 0x1FFF), which
-  the publisher MAY drop or retain.
+* PAT packets (PID 0x0000), rewritten to list only the program present in
+  this track.
+* PMT packets for the selected program, on the PID that the rewritten PAT
+  lists.
+* Packets on any PID that the selected program's PMT lists, including the PCR
+  PID, the PIDs of all elementary streams, and the PIDs that any
+  CA_descriptor references.
+* Packets carrying the service information (SI) tables that the publisher
+  retains, if any.
+* Conditional access packets, including the CAT on PID 0x0001.
+* Null packets (PID 0x1FFF), which the publisher MAY drop or retain.
 
 A publisher that rewrites the PAT and the PMT SHOULD emit them at least as
 often as the source stream did.
