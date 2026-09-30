@@ -162,7 +162,7 @@ Receiver:
 
 Random access point:
 : A point in the packet stream at which a receiver can begin decoding after
-  receiving the applicable transport-stream tables and decoder initialization.
+  receiving the PAT, the PMT, and the decoder initialization.
 
 Single-program transport stream (SPTS):
 : A transport stream whose PAT lists exactly one program.
@@ -723,10 +723,9 @@ This example shows a stored transport stream forwarded unchanged, with
 
 ## Multi-Program Source - Per-Program Tracks {#example-mpts}
 
-This example shows a catalog for a publisher that receives a 2-program
-transport stream and publishes each program as a separate mpeg2ts track. The
-two tracks share a namespace but are independent services; `altGroup` is not
-used because the programs carry different content.
+This example shows a catalog for a publisher that receives a two-program
+transport stream and publishes each program as a per-program track. The two
+tracks share a namespace.
 
 ~~~ json
 {
@@ -798,10 +797,10 @@ catalog fields are present.
 ## Alternate Renditions - Two Bitrate Tracks {#example-abr}
 
 This example shows a catalog for a live channel published at two bitrates as
-alternate renditions. Both tracks are in the same `altGroup`; video tracks
-MUST align Group boundaries at identical presentation positions. The tracks
-use different PID assignments: a subscriber switching between them MUST
-re-parse PAT and PMT on the new track before routing packets to a decoder.
+alternate renditions. Both tracks are in the same `altGroup`, so they align
+their Group boundaries ({{switching}}). The tracks use different PID
+assignments, so a subscriber that switches between them signals the new PAT and
+PMT to its receiver ({{switching}}).
 
 ~~~ json
 {
@@ -849,8 +848,9 @@ re-parse PAT and PMT on the new track before routing packets to a decoder.
 This example shows a live program published as separate ES-packets tracks: one
 video track carrying the PCR, two audio tracks for different languages
 (English and Spanish), one Event Information Table track, and the PAT and PMT
-tracks that carry the program signaling. The video and audio tracks SHOULD
-align their Group boundaries on the same presentation positions.
+tracks that carry the program signaling. The video and audio tracks align
+their Group boundaries on the same presentation positions
+({{es-level-carriage}}).
 
 ~~~ json
 {
@@ -959,21 +959,21 @@ and emits the two tables with the packets of the streams it carries.
 
 A publisher advertises multiple mpeg2ts tracks as alternatives using the MSF
 `altGroup` field. Video tracks in the same alternate group MUST place Group
-boundaries at identical presentation positions, and other tracks SHOULD align
+boundaries at identical presentation positions. Other tracks SHOULD align
 their Group boundaries to the same positions where possible. A track with
 `mpeg2tsMode` set to "unmodified-multiplex" MUST NOT appear in an
 `altGroup`.
 
-A subscriber switches between alternate mpeg2ts tracks either at a Group
-boundary or at a transport-stream random access point that it can
-independently decode. This document does not require continuity counter values
-or PID assignments to match across alternate tracks, so a subscriber MUST
-treat a switch as a packet-stream discontinuity.
-
-After a switch, a receiver MUST re-initialize its system time clock (STC)
-recovery from the first PCR of the new track. It MUST also re-parse the PAT
-and PMT of the new track before routing elementary-stream packets to a
-decoder.
+A subscriber switches between alternate mpeg2ts tracks at a Group boundary or
+at a random access point that it can decode independently. Alternate tracks do
+not have to share continuity counter values, PID assignments, or a timebase,
+so a switch is a discontinuity in the packet stream. A subscriber that outputs
+the packet stream to a receiver MUST make the discontinuity visible to it. The
+subscriber MUST set the discontinuity_indicator ({{ISO138181}}, Section
+2.4.3.5) in the first packet that carries the PCR after the switch, and it
+SHOULD set it in the first packet of each other PID. It MUST also emit the PAT
+and the PMT of the new track with a `version_number` that differs from the one
+it last emitted, so that the receiver reads the new tables.
 
 # Content Protection {#content-protection}
 
@@ -981,31 +981,31 @@ Unmodified carriage preserves any scrambling and conditional access
 information present in the MPEG-2 Transport Stream. Per-program carriage
 preserves it when the publisher retains the conditional access packets
 ({{per-program-carriage}}). ES-level carriage does not preserve it
-({{es-level-carriage}}). Transport-stream scrambling is opaque to MOQT relays and to this
-specification.
+({{es-level-carriage}}). TS-level scrambling is opaque to MOQT relays and to
+this specification.
 
-A publisher MAY apply object-level encryption using a mechanism such as Secure
-Objects {{SecureObjects}}, when the catalog signals it. A subscriber then
-validates source packets after decrypting the Object payload.
+A publisher MAY also encrypt the Object payloads, for example with Secure
+Objects {{SecureObjects}}. A subscriber validates the source packets after it
+decrypts the payload.
 
 # Security Considerations {#security-considerations}
 
 The security considerations of MOQT {{MOQTransport}}, MSF {{MSF}}, MPEG-2
 Transport Stream {{ISO138181}}, and any object encryption scheme apply.
 
-Receivers need to treat transport-stream syntax as untrusted input. Invalid
-packet sizes, invalid sync bytes, malformed PSI, inconsistent continuity
-counters, excessive table repetition, and timestamp discontinuities can cause
-decoder failures or resource exhaustion if not bounded by implementation
-policy.
+Subscribers and receivers treat TS syntax as untrusted input. Invalid packet
+sizes, invalid sync bytes, malformed PSI, inconsistent continuity counters,
+excessive table repetition, and timestamp discontinuities can cause decoder
+failures or resource exhaustion unless the implementation bounds them.
 
-Catalog metadata is also untrusted input. Subscribers MUST validate packet
-sizes, payload lengths, Base64 values, PIDs, program numbers, and object
-ordering before using the values to allocate memory or configure decoders.
+Catalog metadata is also untrusted input. A subscriber MUST check that each
+catalog value is in its valid range before it uses the value, including the
+packet size, the PIDs, the program numbers, the mux rate, and the Base64
+initialization data.
 
-A subscriber cannot check that `mpeg2tsMode` is accurate.
-{{object-payload-format}} establishes that a track is well formed, not that
-its packets are the ones the publisher received.
+A subscriber cannot check that `mpeg2tsMode` is accurate. The rules of
+{{object-payload-format}} let it check that a track is well formed, but not
+that its packets are the ones that the publisher received.
 
 Object-level encryption protects MOQT Object payloads but does not hide MOQT
 namespace, track name, Group ID, Object ID, object size, or delivery timing
@@ -1023,5 +1023,5 @@ reference.
 
 # Acknowledgments
 
-This document follows the repository and draft structure used by the MOQT
-Streaming Format work.
+The authors thank Thomas Drapier, Luke Curley, and Tilson Joji for their
+reviews and discussions.
