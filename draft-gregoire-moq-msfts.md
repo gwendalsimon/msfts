@@ -268,16 +268,20 @@ except:
   this track.
 * PMT packets for the selected program, on the PID that the rewritten PAT
   lists.
-* Packets on any PID that the selected program's PMT lists, including the PCR
-  PID, the PIDs of all elementary streams, and the PIDs that any
-  CA_descriptor references.
+* Packets on any PID that the current PMT of the selected program lists,
+  including the PCR PID, the PIDs of all elementary streams, and the PIDs that
+  any CA_descriptor references.
 * Packets carrying the service information (SI) tables that the publisher
   retains, if any.
 * Conditional access packets, including the CAT on PID 0x0001.
 * Null packets (PID 0x1FFF), which the publisher MAY drop or retain.
 
-A publisher that rewrites the PAT and the PMT SHOULD emit them at least as
-often as the source stream did.
+A publisher that rewrites a table (the PAT, the PMT, the CAT, or an SI table)
+SHOULD emit it at least as often as the source stream did. The publisher sets
+the `version_number` of the rewritten table independently of the source table.
+It MUST increment the version when the content of the rewritten table changes,
+and it MUST NOT increment the version otherwise. When the source PAT stops
+listing the carried program, the publisher SHOULD end the track.
 
 A publisher filtering a scrambled transport stream MUST retain the conditional
 access packets required for descrambling. Conditional access integration is
@@ -399,6 +403,15 @@ the catalog follows MSF unchanged, including the root fields, the common track
 fields, delta updates, and authorization. A parser MUST ignore fields it does
 not understand.
 
+Several track fields copy values from the PSI of the source:
+`mpeg2tsProgramNumber`, `mpeg2tsPcrPid`, `mpeg2tsEsPid`, `mpeg2tsSiPids`, and
+`mpeg2tsScte35Pid`. MSF does not allow the fields of a declared track to
+change ({{MSF}}, Section 5.3). For the advisory fields, the PSI in the packets
+takes precedence, and the publisher MAY leave the catalog unchanged when the
+PSI changes. When the PSI changes `mpeg2tsEsPid` or `mpeg2tsProgramNumber`,
+the publisher MUST publish a new track that carries the new value and remove
+the old track.
+
 ## Track Object Fields {#track-fields}
 
 {{track-fields-table}} lists the track object fields that this document
@@ -495,9 +508,13 @@ MUST be absent in the "unmodified-multiplex" mode.
 
 Required: Optional JSON Type: Number Location: Track Object
 
-The nominal mux rate of the source transport stream in bits per second,
-counted over 188-octet TS packets. The count excludes the four-octet timestamp
-prefix of an M2TS source packet.
+The constant rate, in bits per second, to which a subscriber pads the
+reconstructed packet stream. The rate counts 188-octet TS packets and excludes
+the four-octet prefix of an M2TS source packet. For a track derived from a
+single-program transport stream, the value is the nominal mux rate of the
+source. For a program derived from a multi-program transport stream, the
+publisher chooses the value, because the program has no rate of its own in the
+multiplex. That value SHOULD NOT be lower than the peak rate of the program.
 
 A publisher SHOULD declare this field when it removes null packets, and on
 ES-level tracks, which carry no null packets at all. Where a program is
@@ -770,10 +787,13 @@ catalog fields are present.
 ## Alternate Renditions - Two Bitrate Tracks {#example-abr}
 
 This example shows a catalog for a live channel published at two bitrates as
-alternate renditions. Both tracks are in the same `altGroup`, so they align
-their Group boundaries. The two tracks carry the PCR on different PIDs (257
-and 513), so their PMTs differ. A subscriber that switches between them
-follows {{switching}}.
+alternate renditions. Each rendition comes from its own single-program encoder
+output, which the publisher forwards unchanged. When the renditions arrive as
+programs of one multi-program transport stream, each track uses the
+"per-program" mode and carries a common program number ({{switching}}). Both
+tracks are in the same `altGroup`, so they align their Group boundaries. The
+two tracks carry the PCR on different PIDs (257 and 513), so their PMTs
+differ. A subscriber that switches between them follows {{switching}}.
 
 ~~~ json
 {
@@ -932,8 +952,10 @@ A publisher advertises multiple mpeg2ts tracks as alternatives using the MSF
 `altGroup` field. Video tracks in the same alternate group MUST place Group
 boundaries at identical presentation positions. Other tracks SHOULD align
 their Group boundaries to the same positions where possible. A track with
-`mpeg2tsMode` set to "unmodified-multiplex" MUST NOT appear in an
-`altGroup`.
+`mpeg2tsMode` set to "unmodified-multiplex" MUST NOT appear in an `altGroup`.
+Tracks in the same alternate group SHOULD carry the same program number,
+because a receiver selects a service by its `program_number`. A per-program
+publisher can rewrite the PAT, the PMT, and the SI tables to meet this rule.
 
 A subscriber switches between alternate mpeg2ts tracks at a Group boundary or
 at a random access point that it can decode independently. Alternate tracks do
