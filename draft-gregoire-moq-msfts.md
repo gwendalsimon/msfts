@@ -381,8 +381,12 @@ the time that the PCR values give.
 
 A subscriber whose receiver recovers its clock from packet arrival MUST
 deliver the source packets on a schedule consistent with the PCR values they
-carry. That subscriber SHOULD meet the PCR repetition and accuracy limits of
-the standard governing the receiver, given by {{TR101290}} for a DVB
+carry. In the unmodified modes, that schedule is the input schedule of the
+T-STD ({{ISO138181}}, Section 2.4.2), so a subscriber that meets this
+requirement keeps the T-STD conformance of the source. In the other modes,
+conformance also depends on the changes that the publisher made. A subscriber
+that feeds such a receiver SHOULD meet the PCR repetition and accuracy limits
+of the standard governing the receiver, given by {{TR101290}} for a DVB
 deployment. Where the receiver expects a constant bit rate, the subscriber
 SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target.
 
