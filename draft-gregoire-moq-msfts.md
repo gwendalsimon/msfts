@@ -222,9 +222,9 @@ delivery relates to the schedule.
 A Group SHOULD NOT last longer than 2 seconds. On a live single-program track,
 a publisher SHOULD start each MOQT Group at a random access point.
 
-For a track carrying a whole multiplex, Group boundary placement depends on
-whether the publisher can identify random access points across the multiplex.
-A publisher that can identify them MAY align Group boundaries to those points.
+On a track carrying a whole multiplex, a publisher MAY align Group boundaries
+to the random access points of the reference program
+({{unmodified-multiplex-carriage}}).
 
 When `mpeg2tsRandomAccess` ({{mpeg2ts-random-access}}) is true, the first
 Object of every Group contains the first TS packet of a random access point.
@@ -265,10 +265,11 @@ reach the subscriber unaltered within one PSI repetition cycle.
 ### Unmodified Multiplex {#unmodified-multiplex-carriage}
 
 The publisher forwards every source packet of a multi-program transport stream
-under the rules of {{unmodified-program-carriage}}. Because the publisher
-selects no program, `mpeg2tsProgramNumber` and `mpeg2tsPcrPid` MUST be absent.
-A publisher MUST NOT use this mode when the PAT of the source lists one
-program.
+under the rules of {{unmodified-program-carriage}}. The publisher selects no
+program. It MAY name a reference program in `mpeg2tsProgramNumber` and its PCR
+PID in `mpeg2tsPcrPid`. A subscriber then paces the multiplex on that PCR, and
+`mpeg2tsRandomAccess` refers to the random access points of that program. A
+publisher MUST NOT use this mode when the PAT of the source lists one program.
 
 ### Per-Program {#per-program-carriage}
 
@@ -512,20 +513,21 @@ A PID alone does not say what a track carries. A publisher SHOULD set the MSF
 
 Required: Optional JSON Type: Number Location: Track Object
 
-The MPEG-2 Transport Stream program number carried by this track. When
-present, the track SHOULD carry packets from only that program. This field
+The MPEG-2 Transport Stream program number carried by this track. This field
 identifies the selected program in per-program carriage
 ({{per-program-carriage}}) and the originating program in ES-level carriage
-({{es-level-carriage}}). It MUST be absent in the "unmodified-multiplex"
-mode.
+({{es-level-carriage}}). Outside the "unmodified-multiplex" mode, the track
+SHOULD carry packets from only that program. In the "unmodified-multiplex"
+mode, it names the reference program ({{unmodified-multiplex-carriage}}).
 
 ## PCR PID {#mpeg2ts-pcr-pid}
 
 Required: Optional JSON Type: Number Location: Track Object
 
 The PID carrying the PCR of the program that this track carries. This field is
-advisory and does not replace the PCR signaling in the transport stream. It
-MUST be absent in the "unmodified-multiplex" mode.
+advisory and does not replace the PCR signaling in the transport stream. In
+the "unmodified-multiplex" mode, it names the PCR PID of the reference program
+({{unmodified-multiplex-carriage}}).
 
 ## Mux Rate {#mpeg2ts-mux-rate}
 
@@ -571,8 +573,9 @@ Required: Optional JSON Type: Boolean Location: Track Object
 
 When true, the first Object of every MOQT Group contains a random access point
 ({{group-boundaries}}). When absent or false, this document makes no guarantee
-about where in a Group decoding can begin. This field MUST be absent in the
-"unmodified-multiplex" mode.
+about where in a Group decoding can begin. In the "unmodified-multiplex" mode,
+this field refers to the reference program, and it MUST be absent when the
+catalog names none.
 
 ## Timestamp Mode {#mpeg2ts-timestamp-mode}
 
