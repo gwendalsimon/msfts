@@ -171,7 +171,8 @@ stream it carries, and which track carries the PCR. MSFTS defines the catalog
 signaling that carries those decisions from the publisher to the subscriber.
 
 Demultiplexed carriage, where each elementary stream travels without its TS
-packets, is out of scope. {{MOQMPEGTS}} addresses it.
+packets, is out of scope. {{MOQMPEGTS}} addresses it. Error correction is out
+of scope as well. Residual loss reaches MSFTS as missing Objects or Groups.
 
 # Media Packaging {#media-packaging}
 
@@ -198,10 +199,11 @@ contain only whole source packets, so its length is always a multiple of
 A subscriber reconstructs the packet stream by concatenating the source
 packets from received Objects in ascending Group ID and Object ID order. When
 a subscriber skips or does not receive an Object, the reconstructed packet
-stream has a gap. The continuity counters of the source packets after the gap
-show the loss to the receiver, which resumes decoding at the next random
-access point. A subscriber MUST NOT change the continuity counters to hide the
-gap.
+stream has a gap. The Location of the missing Object identifies the gap
+exactly. The continuity counters of the source packets after the gap can show
+it, but a loss of 16 packets on a PID, or of any multiple of 16, leaves them
+unchanged. A subscriber MUST NOT change the continuity counters to hide a gap.
+It SHOULD report the Location and the duration of each gap to its operator.
 
 Object boundaries are packaging boundaries. Continuity counters, adaptation
 fields, PCR, PTS, DTS, PSI, and other TS syntax remain inside the source
@@ -217,8 +219,8 @@ delivery relates to the schedule.
 
 ## Group Boundaries {#group-boundaries}
 
-On a live single-program track, a publisher SHOULD start each MOQT Group at a
-random access point.
+A Group SHOULD NOT last longer than 2 seconds. On a live single-program track,
+a publisher SHOULD start each MOQT Group at a random access point.
 
 For a track carrying a whole multiplex, Group boundary placement depends on
 whether the publisher can identify random access points across the multiplex.
@@ -246,10 +248,13 @@ values.
 ### Unmodified Program {#unmodified-program-carriage}
 
 The publisher MUST forward the source packets of a single-program transport
-stream without modification. A subscriber can then reconstruct the source
-stream byte-for-byte. The publisher MUST NOT select a program, remap a PID,
-rewrite the PAT or the PMT, change a continuity counter, or insert or remove a
-null packet.
+stream without modification. The publisher MUST NOT select a program, remap a
+PID, rewrite the PAT or the PMT, change a continuity counter, or insert or
+remove a null packet. A subscriber then reconstructs the source stream
+byte-for-byte. It MUST pass that stream to the receiver unchanged, apart from
+the switching signals ({{switching}}), the PAT and PMT copies that it sends
+from the catalog at join ({{init-data}}), and the removal of the prefix
+({{mpeg2ts-timestamp-mode}}).
 
 A publisher SHOULD verify that its pipeline preserves every source packet
 before it declares this mode.
@@ -387,8 +392,9 @@ requirement keeps the T-STD conformance of the source. In the other modes,
 conformance also depends on the changes that the publisher made. A subscriber
 that feeds such a receiver SHOULD meet the PCR repetition and accuracy limits
 of the standard governing the receiver, given by {{TR101290}} for a DVB
-deployment. Where the receiver expects a constant bit rate, the subscriber
-SHOULD use `mpeg2tsMuxRate` ({{mpeg2ts-mux-rate}}) as the stuffing target.
+deployment. Where the receiver expects a constant bit rate and the track is in
+neither unmodified mode, the subscriber SHOULD use `mpeg2tsMuxRate`
+({{mpeg2ts-mux-rate}}) as the stuffing target.
 
 Neither a stuffing target nor arrival times reproduce the source schedule. A
 stuffing target gives a nominal rate, from which the source clock can deviate
@@ -464,7 +470,9 @@ of the four names in {{mode-table}}.
 | es-packets | The TS source packets of one PID ({{es-level-carriage}}) |
 {: #mode-table title="Values of mpeg2tsMode"}
 
-A subscriber that does not recognize the value MUST reject the track.
+A subscriber that does not recognize the value MUST reject the track. A
+subscriber that outputs a transport stream MUST support the
+"unmodified-program" mode with 188-octet source packets.
 
 ## Packet Size {#mpeg2ts-packet-size}
 
@@ -563,7 +571,8 @@ Required: Optional JSON Type: Boolean Location: Track Object
 
 When true, the first Object of every MOQT Group contains a random access point
 ({{group-boundaries}}). When absent or false, this document makes no guarantee
-about where in a Group decoding can begin.
+about where in a Group decoding can begin. This field MUST be absent in the
+"unmodified-multiplex" mode.
 
 ## Timestamp Mode {#mpeg2ts-timestamp-mode}
 
