@@ -570,6 +570,12 @@ approximately 39.77 seconds.
 The value "opaque" indicates that the publisher carries the prefix without
 specified semantics.
 
+A publisher that uses the prefix for a timing method names that method in this
+field. Other documents MAY define values for such methods. A value that no
+published document defines SHOULD be a reverse domain name, for example
+"com.example.timing", so that two private values cannot collide. A subscriber
+that does not recognize the value treats the prefix as "opaque".
+
 ## SCTE-35 PID {#mpeg2ts-scte35-pid}
 
 Required: Optional JSON Type: Number Location: Track Object
