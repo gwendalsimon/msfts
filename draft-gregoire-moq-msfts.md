@@ -375,8 +375,11 @@ up to 30 ppm ({{ISO138181}}). A subscriber can follow that deviation only on
 average, for example from the arrival rate of a live track. Arrival times
 ({{mpeg2ts-timestamp-mode}}) give the spacing of the packets on the clock that
 stamped them. They carry no absolute time. They do not say where the stamping
-took place. Reproducing the source schedule at a constant latency requires
-timing information that this document does not define.
+took place. This document does not define the timing information that
+reproduces the source schedule at a constant latency. A publisher can carry it
+in the prefix, under a method that `mpeg2tsTimestampMode` names
+({{mpeg2ts-timestamp-mode}}), or outside the packets, in MOQT Object
+properties or an MSF timeline track.
 
 ## Splice Signaling {#splice-signaling}
 
